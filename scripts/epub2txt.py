@@ -4,6 +4,7 @@
 import re
 import sys
 import zipfile
+import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import List, Tuple
@@ -59,20 +60,30 @@ def get_epub_chapters(epub_path: str) -> List[Tuple[str, str]]:
             return []
 
         opf_content = epub.read(opf_path).decode('utf-8')
+        ns = {'opf': 'http://www.idpf.org/2007/opf'}
 
-        # Extract manifest items
+        try:
+            root = ET.fromstring(opf_content)
+        except ET.ParseError as e:
+            print(f"Error: Invalid OPF XML: {e}", file=sys.stderr)
+            return []
+
+        # Extract manifest items via XML
         manifest: dict[str, str] = {}
-        for match in re.finditer(r'<item\s+id="([^"]+)"\s+href="([^"]+)"', opf_content):
-            manifest[match.group(1)] = match.group(2)
+        for item in root.findall('.//opf:manifest/opf:item', ns):
+            item_id = item.get('id')
+            href = item.get('href')
+            if item_id and href:
+                manifest[item_id] = href
 
-        # Extract spine order
-        spine_items = re.findall(r'<itemref\s+idref="([^"]+)"', opf_content)
+        # Extract spine order via XML
+        spine_items = [ref.get('idref') for ref in root.findall('.//opf:spine/opf:itemref', ns)]
 
         base_path = str(Path(opf_path).parent)
         chapter_num = 0
 
         for item_id in spine_items:
-            if item_id not in manifest:
+            if not item_id or item_id not in manifest:
                 continue
 
             href = manifest[item_id]

@@ -14,6 +14,9 @@ CHAPTER_PATTERNS = [
     (r'^#{1,3}\s+', 'md'),          # Markdown: ## Chapter 1
 ]
 
+# Warn when chapter exceeds this many lines (risk of context overflow in LLM)
+MAX_CHAPTER_LINES = 5000
+
 # Volume markers to exclude
 VOLUME_PATTERNS = [
     r'^第.{1,10}卷',
@@ -67,6 +70,12 @@ def detect_chapters(file_path: str) -> list:
     chapters = []
     for idx, (start_line, title) in enumerate(boundaries):
         end_line = boundaries[idx + 1][0] - 1 if idx + 1 < len(boundaries) else len(lines)
+        line_count = end_line - start_line + 1
+
+        if line_count > MAX_CHAPTER_LINES:
+            print(f"Warning: Chapter {idx + 1} has {line_count} lines (>{MAX_CHAPTER_LINES}). "
+                  f"May cause context overflow during translation.", file=sys.stderr)
+
         chapters.append({
             'id': idx + 1,
             'title': title,

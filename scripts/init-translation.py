@@ -11,6 +11,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 from detect_chapters import detect_chapters
 
 
+KNOWN_GENRES = {'tienxia', 'wuxia', 'urban', 'historical', 'gamelit', 'horror', 'fantasy'}
+
+
 def init_translation(source_file: str, output_dir: str = None,
                      genre: str = 'fantasy', glossary_path: str = 'glossary/default.json') -> dict:
     """Create .translator/ directory and state.json."""
@@ -18,6 +21,17 @@ def init_translation(source_file: str, output_dir: str = None,
     if not source_path.exists():
         print(f"Error: Source file not found: {source_file}", file=sys.stderr)
         sys.exit(1)
+
+    if genre not in KNOWN_GENRES:
+        print(f"Warning: Unknown genre '{genre}'. Known: {', '.join(sorted(KNOWN_GENRES))}", file=sys.stderr)
+        print(f"Falling back to 'fantasy'", file=sys.stderr)
+        genre = 'fantasy'
+
+    # Validate glossary path
+    glossary_file = Path(glossary_path)
+    if not glossary_file.exists():
+        print(f"Warning: Glossary not found at {glossary_path}, using default", file=sys.stderr)
+        glossary_path = 'glossary/default.json'
 
     # Defaults
     if not output_dir:
