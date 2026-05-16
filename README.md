@@ -10,9 +10,10 @@ Gemini CLI extension for Chinese-to-Vietnamese novel translation. Chapter-by-cha
 
 ## Usage
 
-### Translate a Novel
+### Translate a Novel (All-in-One)
 ```
-/translate novel.txt --genre tienxia --bilingual
+/cli-tran novel.txt
+/cli-tran novel.epub
 ```
 
 ### Resume Interrupted Translation
@@ -23,11 +24,6 @@ Gemini CLI extension for Chinese-to-Vietnamese novel translation. Chapter-by-cha
 ### Validate Translation Quality
 ```
 /validate
-```
-
-### Translate from EPUB
-```
-/translate novel.epub --genre tienxia
 ```
 
 ## Genre Support
@@ -45,9 +41,8 @@ Gemini CLI extension for Chinese-to-Vietnamese novel translation. Chapter-by-cha
 ## Architecture
 
 ```
-User: /translate novel.txt --genre tienxia
-  ├─ init-translation.py → detect chapters, create state.json
-  ├─ translate.toml → model reads state, translates chapter N
+User: /cli-tran novel.txt
+  ├─ cli-tran.toml → runs init-translation.py + translates chapter 1
   ├─ translate-hook.sh → deny + clearContext → loop to next chapter
   ├─ ... repeat until all chapters done ...
   └─ /resume picks up from last completed chapter
@@ -59,7 +54,7 @@ User: /translate novel.txt --genre tienxia
 ├── gemini-extension.json       # Extension manifest
 ├── GEMINI.md                   # Extension context (loaded every session)
 ├── commands/
-│   ├── translate.toml          # Main translation command
+│   ├── cli-tran.toml           # All-in-one: init + translate
 │   ├── resume.toml             # Resume interrupted translation
 │   └── validate.toml           # Quality validation command
 ├── hooks/

@@ -1,16 +1,30 @@
-# /translate command — Translate one chapter of a Chinese novel to Vietnamese
+# /cli-tran command — All-in-one: init + translate Chinese novel to Vietnamese
 
 prompt = """
 You are a professional Chinese-to-Vietnamese novel translator.
 
-## Current Task
+## Current Task — All-in-One Translation
 
-1. Read the translation state file at {{args}}/.translator/state.json to find the current chapter (current_chapter field).
-2. Read the source file chapter using read_file with the start_line and end_line from state.
-3. Read the glossary file at the path specified in state.json (glossary_path field).
-4. Translate the chapter following the principles below.
-5. Write the translation to the output directory as chapter_NNN.txt (zero-padded).
-6. Output EXACTLY this marker at the end of your response: CHAPTER_TRANSLATION_COMPLETE
+### Step 1: Initialize Translation State
+
+Run this command to detect chapters and create state.json:
+
+!python scripts/init-translation.py {{args}}
+
+This will:
+- Detect chapter boundaries in the source file
+- Create .translator/state.json with chapter metadata
+- Default genre: fantasy (no flag needed)
+
+### Step 2: Read State and Translate First Chapter
+
+1. Read the state file at the path shown in the init output.
+2. Find current_chapter (should be 1) and its start_line/end_line.
+3. Read the source file chapter using read_file with start_line and end_line.
+4. Read the glossary file at the path specified in state.json (glossary_path field).
+5. Translate the chapter following the principles below.
+6. Write the translation to the output directory as chapter_NNN.txt (zero-padded).
+7. Output EXACTLY this marker at the end of your response: CHAPTER_TRANSLATION_COMPLETE
 
 IMPORTANT: Do NOT update state.json yourself — the AfterAgent hook handles all state mutations.
 
