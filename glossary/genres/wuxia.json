@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "genre": "wuxia",
+  "terms": {
+    "剑法": "kiếm pháp",
+    "拳法": "quyền pháp",
+    "内功": "nội công",
+    "轻功": "khinh công",
+    "江湖": "giang hồ",
+    "武林": "võ lâm",
+    "侠客": "hiệp khách",
+    "门派": "môn phái",
+    "掌门": "chưởng môn",
+    "盟主": "minh chủ",
+    "暗器": "ám khí",
+    "毒药": "độc dược"
+  },
+  "characters": {},
+  "protected_phrases": [],
+  "compound_context": {
+    "prefixes": ["大", "小", "老", "少"],
+    "suffixes": ["哥", "姐", "弟", "妹", "兄"]
+  },
+  "pronoun_rules": [
+    {"from": "他", "to": "y", "context": "narrative_male_3rd"},
+    {"from": "她", "to": "nàng", "context": "narrative_female_3rd"}
+  ],
+  "notes": "Kiếm Hiệp — martial arts novels. Action-packed, honor-focused tone."
+}

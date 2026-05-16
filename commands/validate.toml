@@ -1,0 +1,20 @@
+# /validate command — Validate translation quality
+
+prompt = """
+Validate the translation quality.
+
+1. Read .translator/state.json from {{args}}
+2. For each completed chapter:
+   a. Read the translated file from the output directory
+   b. Check for Chinese characters (should be none)
+   c. Check paragraph count matches source (±10%)
+   d. Check length ratio (0.5-2.0x of source)
+   e. Check glossary terms applied
+3. Report any issues found with line numbers
+4. Output a summary: total passed, total failed, details per chapter
+
+State file: {{args}}/.translator/state.json
+
+You can also run the validation script:
+!{python3 scripts/validate-translation.py {{args}}/.translator/state.json}
+"""

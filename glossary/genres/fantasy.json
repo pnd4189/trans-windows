@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "genre": "fantasy",
+  "terms": {
+    "魔法": "phép thuật",
+    "法师": "pháp sư",
+    "龙": "rồng",
+    "精灵": "elf",
+    "王国": "vương quốc",
+    "冒险": "phiêu lưu",
+    "勇者": "dũng giả",
+    "魔王": "ma vương",
+    "骑士": "kỵ sĩ"
+  },
+  "characters": {},
+  "protected_phrases": [],
+  "compound_context": {
+    "prefixes": ["大", "小", "老", "少"],
+    "suffixes": ["哥", "姐", "弟", "妹", "兄"]
+  },
+  "pronoun_rules": [
+    {"from": "他", "to": "hắn", "context": "narrative_male_3rd"},
+    {"from": "她", "to": "nàng", "context": "narrative_female_3rd"}
+  ],
+  "notes": "Fantasy — generic fantasy. Epic, diverse tone."
+}

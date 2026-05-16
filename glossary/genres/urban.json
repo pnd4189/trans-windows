@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "genre": "urban",
+  "terms": {
+    "手机": "điện thoại",
+    "公司": "công ty",
+    "大学": "đại học",
+    "城市": "thành phố",
+    "老板": "ông chủ",
+    "经理": "quản lý",
+    "同事": "đồng nghiệp",
+    "公寓": "căn hộ"
+  },
+  "characters": {},
+  "protected_phrases": [],
+  "compound_context": {
+    "prefixes": ["大", "小", "老", "少"],
+    "suffixes": ["哥", "姐", "弟", "妹", "兄"]
+  },
+  "pronoun_rules": [
+    {"from": "他", "to": "anh", "context": "narrative_male_3rd"},
+    {"from": "她", "to": "cô ấy", "context": "narrative_female_3rd"}
+  ],
+  "notes": "Thành Thị — urban fantasy. Modern, casual, dialogue-heavy tone."
+}

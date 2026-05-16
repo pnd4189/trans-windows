@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "genre": "gamelit",
+  "terms": {
+    "等级": "cấp độ",
+    "经验": "kinh nghiệm",
+    "技能": "kỹ năng",
+    "属性": "thuộc tính",
+    "装备": "trang bị",
+    "副本": "phó bản",
+    "任务": "nhiệm vụ",
+    "怪物": "quái vật",
+    "boss": "trùm",
+    "工会": "công hội"
+  },
+  "characters": {},
+  "protected_phrases": [],
+  "compound_context": {
+    "prefixes": ["大", "小", "老", "少"],
+    "suffixes": ["哥", "姐", "弟", "妹", "兄"]
+  },
+  "pronoun_rules": [
+    {"from": "他", "to": "hắn", "context": "narrative_male_3rd"},
+    {"from": "她", "to": "nàng", "context": "narrative_female_3rd"}
+  ],
+  "notes": "GameLit — game system novels. Technical, progression-focused tone."
+}

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "genre": "horror",
+  "terms": {
+    "鬼": "ma",
+    "魂": "hồn",
+    "灵异": "linh dị",
+    "恐怖": "khủng bố",
+    "阴": "âm",
+    "邪": "tà",
+    "怨灵": "oan hồn",
+    "厉鬼": "quỷ dữ",
+    "驱魔": "trừ ma",
+    "符咒": "bùa chú"
+  },
+  "characters": {},
+  "protected_phrases": [],
+  "compound_context": {
+    "prefixes": ["大", "小", "老", "少"],
+    "suffixes": ["哥", "姐", "弟", "妹", "兄"]
+  },
+  "pronoun_rules": [
+    {"from": "他", "to": "hắn", "context": "narrative_male_3rd"},
+    {"from": "她", "to": "nàng", "context": "narrative_female_3rd"}
+  ],
+  "notes": "Kinh Dị — horror novels. Dark, eerie, atmosphere-driven tone."
+}

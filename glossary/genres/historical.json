@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "genre": "historical",
+  "terms": {
+    "皇帝": "hoàng đế",
+    "太子": "thái tử",
+    "皇后": "hoàng hậu",
+    "朝廷": "triều đình",
+    "大臣": "đại thần",
+    "王朝": "vương triều",
+    "将军": "tướng quân",
+    "丞相": "thừa tướng",
+    "御史": "ngự sử",
+    "太监": "thái giám"
+  },
+  "characters": {},
+  "protected_phrases": [],
+  "compound_context": {
+    "prefixes": ["大", "小", "老", "少"],
+    "suffixes": ["哥", "姐", "弟", "妹", "兄"]
+  },
+  "pronoun_rules": [
+    {"from": "他", "to": "hắn", "context": "narrative_male_3rd"},
+    {"from": "她", "to": "nàng", "context": "narrative_female_3rd"}
+  ],
+  "notes": "Lịch Sử — historical novels. Formal, period-accurate tone."
+}

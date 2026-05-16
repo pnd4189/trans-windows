@@ -1,0 +1,13 @@
+# /resume command — Resume an interrupted translation
+
+prompt = """
+Resume the interrupted translation.
+
+1. Read .translator/state.json from {{args}}
+2. Find the first chapter with status != "completed"
+3. Set current_chapter to that chapter number
+4. Continue translation from that chapter using the same process as /translate
+5. If all chapters are already completed, report "All chapters already translated"
+
+State file: {{args}}/.translator/state.json
+"""

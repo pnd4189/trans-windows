@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "genre": "tienxia",
+  "terms": {
+    "修炼": "tu luyện",
+    "境界": "cảnh giới",
+    "金丹": "Kim Đan",
+    "元婴": "Nguyên Anh",
+    "化神": "Hóa Thần",
+    "大乘": "Đại Thừa",
+    "渡劫": "độ kiếp",
+    "飞升": "phi thăng",
+    "仙人": "tiên nhân",
+    "道": "Đạo",
+    "灵气": "linh khí",
+    "灵脉": "linh mạch",
+    "法宝": "pháp bảo",
+    "神通": "thần thông",
+    "天劫": "thiên kiếp"
+  },
+  "characters": {},
+  "protected_phrases": [],
+  "compound_context": {
+    "prefixes": ["大", "小", "老", "少"],
+    "suffixes": ["哥", "姐", "弟", "妹", "兄"]
+  },
+  "pronoun_rules": [
+    {"from": "他", "to": "hắn", "context": "narrative_male_3rd"},
+    {"from": "她", "to": "nàng", "context": "narrative_female_3rd"}
+  ],
+  "notes": "Tiên Hiệp — cultivation novels. Formal, ancient, spiritual tone."
+}

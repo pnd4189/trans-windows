@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "genre": "default",
+  "terms": {
+    "你好": "xin chào",
+    "谢谢": "cảm ơn",
+    "对不起": "xin lỗi",
+    "师父": "sư phụ",
+    "师兄": "sư huynh",
+    "师姐": "sư tỷ",
+    "弟子": "đệ tử",
+    "长老": "trưởng lão",
+    "掌门": "chưởng môn",
+    "宗门": "tông môn",
+    "修炼": "tu luyện",
+    "境界": "cảnh giới",
+    "丹药": "đan dược",
+    "灵石": "linh thạch",
+    "法宝": "pháp bảo",
+    "功法": "công pháp",
+    "秘境": "bí cảnh",
+    "阵法": "trận pháp"
+  },
+  "characters": {},
+  "protected_phrases": [],
+  "compound_context": {
+    "prefixes": ["大", "小", "老", "少"],
+    "suffixes": ["哥", "姐", "弟", "妹", "兄"]
+  },
+  "pronoun_rules": [
+    {"from": "他", "to": "hắn", "context": "narrative_male_3rd"},
+    {"from": "她", "to": "nàng", "context": "narrative_female_3rd"},
+    {"from": "我", "to": "ta", "context": "narrative_1st"},
+    {"from": "你", "to": "ngươi", "context": "dialogue_2nd_formal"}
+  ],
+  "notes": "Universal terms for Chinese web novels"
+}

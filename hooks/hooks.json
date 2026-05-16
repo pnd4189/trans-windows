@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "AfterAgent": [{
+      "matcher": "*",
+      "hooks": [{
+        "name": "translate-loop",
+        "type": "command",
+        "command": "${extensionPath}/hooks/translate-hook.sh"
+      }]
+    }]
+  }
+}
