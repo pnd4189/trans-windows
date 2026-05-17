@@ -1,7 +1,6 @@
 """Tests for glossary-loader.py"""
 
 import importlib.util
-import json
 import sys
 from pathlib import Path
 
@@ -9,6 +8,8 @@ SCRIPTS_DIR = str(Path(__file__).parent.parent / 'scripts')
 sys.path.insert(0, SCRIPTS_DIR)
 
 spec = importlib.util.spec_from_file_location("glossary_loader", f"{SCRIPTS_DIR}/glossary-loader.py")
+if spec is None or spec.loader is None:
+    raise ImportError(f"Could not load glossary-loader.py")
 _mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(_mod)
 deep_merge = _mod.deep_merge

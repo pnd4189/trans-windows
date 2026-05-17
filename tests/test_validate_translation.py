@@ -8,6 +8,8 @@ SCRIPTS_DIR = str(Path(__file__).parent.parent / 'scripts')
 sys.path.insert(0, SCRIPTS_DIR)
 
 spec = importlib.util.spec_from_file_location("validate_translation", f"{SCRIPTS_DIR}/validate-translation.py")
+if spec is None or spec.loader is None:
+    raise ImportError(f"Could not load validate-translation.py")
 _mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(_mod)
 count_chinese_chars = _mod.count_chinese_chars

@@ -2,7 +2,6 @@
 """Recover corrupted state.json by scanning the output directory for completed chapters."""
 
 import json
-import re
 import sys
 from pathlib import Path
 from datetime import datetime, timezone
@@ -31,7 +30,7 @@ def recover_state(state_file: str):
             state_path.write_text(bak_path.read_text(encoding='utf-8'), encoding='utf-8')
             return
         else:
-            print(f"Error: state.json is corrupted and no backup found.", file=sys.stderr)
+            print("Error: state.json is corrupted and no backup found.", file=sys.stderr)
             sys.exit(1)
 
     # Scan output directory

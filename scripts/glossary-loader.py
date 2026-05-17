@@ -4,7 +4,6 @@
 import json
 import sys
 from pathlib import Path
-from typing import Any
 
 
 def load_json(path: Path) -> dict:
@@ -77,7 +76,7 @@ def detect_genre(text_sample: str) -> str:
     if max(scores.values()) == 0:
         return 'fantasy'
 
-    return max(scores, key=scores.get)
+    return max(scores, key=lambda k: scores[k])
 
 
 def main():

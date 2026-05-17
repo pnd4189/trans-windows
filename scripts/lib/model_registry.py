@@ -62,7 +62,7 @@ _TIER_PATTERNS = (
 _VERSION_RE = re.compile(r"gemini-(\d+)(?:\.(\d+))?")
 
 
-def model_tier(name: str) -> str:
+def model_tier(name: str | None) -> str:
     """Classify into pro|flash|lite|ultra|unknown by substring match."""
     n = (name or "").lower()
     for tier, markers in _TIER_PATTERNS:
@@ -71,7 +71,7 @@ def model_tier(name: str) -> str:
     return "unknown"
 
 
-def model_version(name: str) -> Tuple[int, int]:
+def model_version(name: str | None) -> Tuple[int, int]:
     """Return (major, minor); (0, 0) if not parseable."""
     m = _VERSION_RE.search((name or "").lower())
     if not m:

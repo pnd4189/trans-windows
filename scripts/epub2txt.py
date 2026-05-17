@@ -110,7 +110,7 @@ def get_epub_chapters(epub_path: str) -> List[Tuple[str, str]]:
                     title = f"Chapter {chapter_num}"
 
                     title_match = re.search(r'<h[1-3][^>]*>(.*?)</h[1-3]>', content, re.IGNORECASE)
-                    if title_match:
+                    if title_match and title_match.group(1):
                         title = re.sub(r'<[^>]+>', '', title_match.group(1)).strip()
 
                     chapters.append((title, text))
@@ -120,7 +120,7 @@ def get_epub_chapters(epub_path: str) -> List[Tuple[str, str]]:
     return chapters
 
 
-def epub_to_txt(epub_path: str, output_path: str = None) -> str:
+def epub_to_txt(epub_path: str, output_path: str | None = None) -> str:
     """Convert EPUB to TXT with chapter markers."""
     if not output_path:
         output_path = str(Path(epub_path).with_suffix('.txt'))

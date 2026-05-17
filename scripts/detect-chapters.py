@@ -64,6 +64,8 @@ def detect_chapters(file_path: str) -> list:
 
     # No markers found — treat entire file as single chapter
     if not boundaries:
+        if line_count == 0:
+            return []
         return [{
             'id': 1,
             'title': '全文',

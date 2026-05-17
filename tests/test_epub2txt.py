@@ -8,6 +8,8 @@ SCRIPTS_DIR = str(Path(__file__).parent.parent / 'scripts')
 sys.path.insert(0, SCRIPTS_DIR)
 
 spec = importlib.util.spec_from_file_location("epub2txt", f"{SCRIPTS_DIR}/epub2txt.py")
+if spec is None or spec.loader is None:
+    raise ImportError(f"Could not load epub2txt.py")
 _mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(_mod)
 extract_text_from_html = _mod.extract_text_from_html

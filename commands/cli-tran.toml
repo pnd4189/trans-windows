@@ -1,32 +1,77 @@
-# /cli-tran command — All-in-one: init + translate Chinese novel to Vietnamese
+# /cli-tran command — Unified translation tool with flags
+
+description = "Translates novel content with options to validate and resume."
 
 prompt = """
 You are a professional Chinese-to-Vietnamese novel translator.
 
-## Current Task — All-in-One Translation
+## Flags
+
+Parse {{args}} for flags:
+- `--resume` — Resume an interrupted translation
+- `--validate` — Validate translation quality
+- No flag — Init + translate (default)
+
+---
+
+## Mode: RESUME (when --resume flag is present)
+
+1. Read .translator/state.json from the path in {{args}} (strip --resume)
+2. Find the first chapter with status != "completed"
+3. Set current_chapter to that chapter number
+4. Continue translation from that chapter using the translation principles below
+5. If all chapters are already completed, report "All chapters already translated"
+6. Output CHAPTER_TRANSLATION_COMPLETE or CHAPTER_TRANSLATION_FAILED marker
+
+---
+
+## Mode: VALIDATE (when --validate flag is present)
+
+1. Read .translator/state.json from the path in {{args}} (strip --validate)
+2. For each completed chapter:
+   a. Read the translated file from the output directory
+   b. Check for Chinese characters (should be none)
+   c. Check paragraph count matches source (±10%)
+   d. Check length ratio (0.5-2.0x of source)
+   e. Check glossary terms applied
+3. Report any issues found with line numbers
+4. Output a summary: total passed, total failed, details per chapter
+
+You can also run the validation script:
+!python3 scripts/validate-translation.py <state_file_path>
+
+---
+
+## Mode: DEFAULT — Init + Translate (no flags)
 
 ### Step 1: Initialize Translation State
 
 Run this command to detect chapters and create state.json:
 
-!python scripts/init-translation.py {{args}}
+!python3 scripts/init-translation.py {{args}}
 
 This will:
 - Detect chapter boundaries in the source file
 - Create .translator/state.json with chapter metadata
 - Default genre: fantasy (no flag needed)
 
-### Step 2: Read State and Translate First Chapter
+### Step 2: Translate Chapter
 
-1. Read the state file at the path shown in the init output.
-2. Find current_chapter (should be 1) and its start_line/end_line.
-3. Read the source file chapter using read_file with start_line and end_line.
-4. Read the glossary file at the path specified in state.json (glossary_path field).
-5. Translate the chapter following the principles below.
-6. Write the translation to the output directory as chapter_NNN.txt (zero-padded).
-7. Output EXACTLY this marker at the end of your response: CHAPTER_TRANSLATION_COMPLETE
+Check if a system message provides chapter details (source file, line range, output file).
+- If YES: use those details directly — skip reading state.json, go straight to translation.
+- If NO (first run): read state.json to find current_chapter and its start_line/end_line.
+
+Then:
+1. Read the source file chapter using read_file with start_line and end_line.
+2. Read the glossary file at the path specified in state.json (glossary_path field).
+3. Translate the chapter following the principles below.
+4. Write the translation to the output file path.
+5. Output EXACTLY this marker on its own line at the END of your response: CHAPTER_TRANSLATION_COMPLETE
 
 IMPORTANT: Do NOT update state.json yourself — the AfterAgent hook handles all state mutations.
+IMPORTANT: The marker CHAPTER_TRANSLATION_COMPLETE MUST be the very last line of your response. No text after it.
+
+---
 
 ## Translation Principles
 
@@ -58,7 +103,7 @@ The glossary is a HINT, not a hard rule:
 
 ## Important
 
-- Use read_file tool, NOT @{file} (2000-line limit)
+- Use read_file tool (2000-line limit per call, use start_line/end_line for large chapters)
 - Use write_file for output (overwrite mode, one file per chapter)
 - Output CHAPTER_TRANSLATION_COMPLETE marker when done
 - If translation fails, output CHAPTER_TRANSLATION_FAILED instead

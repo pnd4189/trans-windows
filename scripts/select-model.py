@@ -20,7 +20,6 @@ import re
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -209,7 +208,7 @@ def invalidate_cache(model: str):
 
 # --- Cascade logic ---
 
-def strongest_available(exhausted: list[str] = None) -> str:
+def strongest_available(exhausted: list[str] | None = None) -> str:
     """
     Pro1 → Pro2 → Flash1 cascade.
     Returns strongest alive model, skipping exhausted ones.
@@ -242,7 +241,7 @@ def strongest_available(exhausted: list[str] = None) -> str:
 
 # --- Main detection ---
 
-def detect_active_model(exhausted: list[str] = None) -> tuple[str, str]:
+def detect_active_model(exhausted: list[str] | None = None) -> tuple[str, str]:
     """
     Resolve which model to use. Returns (model_name, source).
     Priority:

@@ -4,18 +4,28 @@
 import json
 import os
 import sys
+import importlib.util
 from datetime import datetime, timezone
 from pathlib import Path
 
 # Import detect-chapters from same directory
-sys.path.insert(0, str(Path(__file__).parent))
-from detect_chapters import detect_chapters
+_scripts_dir = str(Path(__file__).parent)
+sys.path.insert(0, _scripts_dir)
+
+_spec = importlib.util.spec_from_file_location("detect_chapters", f"{_scripts_dir}/detect-chapters.py")
+if _spec is None or _spec.loader is None:
+    print(f"Error: Could not load detect-chapters.py from {_scripts_dir}", file=sys.stderr)
+    sys.exit(1)
+
+_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_mod)
+detect_chapters = _mod.detect_chapters
 
 
 KNOWN_GENRES = {'tienxia', 'wuxia', 'urban', 'historical', 'gamelit', 'horror', 'fantasy'}
 
 
-def init_translation(source_file: str, output_dir: str = None,
+def init_translation(source_file: str, output_dir: str | None = None,
                      genre: str = 'fantasy', glossary_path: str = 'glossary/default.json') -> dict:
     """Create .translator/ directory and state.json."""
     source_path = Path(source_file).resolve()
@@ -24,9 +34,24 @@ def init_translation(source_file: str, output_dir: str = None,
     if not source_path.is_file():
         raise ValueError(f"Source path is not a file: {source_file}")
 
+    # Idempotent: if state.json already exists and is active, skip re-init
+    translator_dir = source_path.parent / '.translator'
+    existing_state_file = translator_dir / 'state.json'
+    if existing_state_file.exists():
+        try:
+            existing = json.loads(existing_state_file.read_text(encoding='utf-8'))
+            if existing.get('active') and existing.get('source_file') == str(source_path):
+                print(f"Translation already in progress: {existing['total_chapters']} chapters")
+                print(f"State file: {existing_state_file}")
+                print(f"Output dir: {existing.get('output_dir', 'translations')}")
+                print(f"Progress: {existing.get('chapters_completed', 0)}/{existing['total_chapters']} completed")
+                return existing
+        except (json.JSONDecodeError, KeyError):
+            pass  # corrupted state, re-initialize
+
     if genre not in KNOWN_GENRES:
         print(f"Warning: Unknown genre '{genre}'. Known: {', '.join(sorted(KNOWN_GENRES))}", file=sys.stderr)
-        print(f"Falling back to 'fantasy'", file=sys.stderr)
+        print("Falling back to 'fantasy'", file=sys.stderr)
         genre = 'fantasy'
 
     # Validate glossary path
@@ -39,7 +64,6 @@ def init_translation(source_file: str, output_dir: str = None,
     if not output_dir:
         output_dir = str(source_path.parent / 'translations')
     output_path = Path(output_dir)
-    translator_dir = source_path.parent / '.translator'
 
     # Create directories
     translator_dir.mkdir(exist_ok=True)
@@ -101,6 +125,11 @@ def init_translation(source_file: str, output_dir: str = None,
     tmp_file = translator_dir / 'state.json.tmp'
     tmp_file.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding='utf-8')
     tmp_file.rename(state_file)
+
+    # Write state file path to a known location for the hook to find
+    # Uses /tmp so hook can locate it regardless of CWD or source file location
+    state_path_file = Path('/tmp/.cli-tran-state-path')
+    state_path_file.write_text(str(state_file), encoding='utf-8')
 
     print(f"Translation initialized: {len(chapters)} chapters detected")
     print(f"State file: {state_file}")

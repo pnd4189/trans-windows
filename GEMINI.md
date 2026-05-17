@@ -2,6 +2,16 @@
 
 Chinese-to-Vietnamese web novel translator. Chapter-by-chapter with automatic loop control.
 
+## Command Usage
+
+Single command `/cli-tran` with flags:
+
+| Command | Description |
+|---------|-------------|
+| `/cli-tran <file>` | Init + translate novel |
+| `/cli-tran <file> --resume` | Resume interrupted translation |
+| `/cli-tran <file> --validate` | Validate translation quality |
+
 ## Translation Principles
 
 ### P1: Meaning Preservation
@@ -60,7 +70,7 @@ These markers control the automated loop.
 
 ## Tool Usage
 
-- Use `read_file` tool (NOT `@{file}`) — `@{file}` has 2000-line limit
+- Use `read_file` tool (2000-line limit per call, use start_line/end_line for large chapters)
 - Use `write_file` for output (overwrite mode)
 - Use `read_file(start_line, end_line)` for chapter extraction
 

@@ -1,7 +1,6 @@
 """Tests for detect-chapters.py"""
 
 import importlib.util
-import json
 import sys
 from pathlib import Path
 
@@ -9,6 +8,9 @@ SCRIPTS_DIR = str(Path(__file__).parent.parent / 'scripts')
 sys.path.insert(0, SCRIPTS_DIR)
 
 spec = importlib.util.spec_from_file_location("detect_chapters", f"{SCRIPTS_DIR}/detect-chapters.py")
+if spec is None or spec.loader is None:
+    raise ImportError(f"Could not load detect-chapters.py from {SCRIPTS_DIR}")
+
 _mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(_mod)
 detect_chapters = _mod.detect_chapters
