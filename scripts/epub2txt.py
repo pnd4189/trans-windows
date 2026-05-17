@@ -87,9 +87,21 @@ def get_epub_chapters(epub_path: str) -> List[Tuple[str, str]]:
                 continue
 
             href = manifest[item_id]
-            file_path = f"{base_path}/{href}" if base_path else href
+            # Fix zip path traversal: sanitize href and ensure it stays within base_path
+            normalized_href = str(Path(href).resolve().relative_to(Path(href).resolve().anchor))
+            file_path = f"{base_path}/{normalized_href}" if base_path else normalized_href
+            
+            # Additional safety check
+            if '..' in normalized_href or normalized_href.startswith('/'):
+                 continue
 
             try:
+                # Zip bomb protection: check size before reading
+                info = epub.getinfo(file_path)
+                if info.file_size > 10 * 1024 * 1024: # 10MB limit per file
+                    print(f"Warning: Skipping large file {file_path} ({info.file_size} bytes)", file=sys.stderr)
+                    continue
+                
                 content = epub.read(file_path).decode('utf-8')
                 text = extract_text_from_html(content)
 

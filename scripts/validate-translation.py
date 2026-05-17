@@ -112,7 +112,15 @@ def validate_all(state_file: str) -> List[ValidationResult]:
     for ch in state['chapters']:
         if ch['status'] == 'completed' and ch['output_file']:
             src = state['source_file']
-            tr = str(Path(state['output_dir']) / ch['output_file'])
+            out_dir = Path(state['output_dir'])
+            tr_file = ch['output_file']
+            
+            # Security: Ensure tr_file is just a filename, no path traversal
+            if '..' in tr_file or '/' in tr_file or '\\' in tr_file:
+                print(f"Warning: Skipping suspicious output file path: {tr_file}", file=sys.stderr)
+                continue
+                
+            tr = str(out_dir / tr_file)
             results.append(validate_chapter(src, tr, ch['id']))
     return results
 
