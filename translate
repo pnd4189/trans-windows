@@ -1,0 +1,84 @@
+#!/bin/bash
+# translate — Supervisor script for automated translation with model cascade.
+#
+# Usage:
+#   ./translate <source_file>
+#   ./translate novel.txt
+#   ./translate novel.epub
+#
+# Automatically selects the strongest available Gemini model and handles
+# quota exhaustion by cascading: Pro1 → Pro2 → Flash.
+set -euo pipefail
+
+EXT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SOURCE_FILE="${1:?Usage: ./translate <source_file>}"
+EXHAUSTED=""
+STATE_FILE=".translator/state.json"
+
+# Check if resume is needed (state file exists and active)
+RESUME_FLAG=""
+if [ -f "$STATE_FILE" ]; then
+    ACTIVE=$(jq -r '.active // false' "$STATE_FILE")
+    CURRENT=$(jq -r '.current_chapter // 1' "$STATE_FILE")
+    if [ "$ACTIVE" = "true" ] && [ "$CURRENT" -gt 1 ]; then
+        RESUME_FLAG="--resume"
+        echo "[translate] Resuming from chapter $CURRENT" >&2
+    fi
+fi
+
+while true; do
+    # Select model (respecting exhausted list)
+    MODEL=$(python3 "$EXT_DIR/scripts/select-model.py" --quiet \
+        ${EXHAUSTED:+--exhausted "$EXHAUSTED"} 2>/dev/null)
+
+    if [ -z "$MODEL" ]; then
+        echo "[translate] Error: No available models. All exhausted." >&2
+        exit 1
+    fi
+
+    export GEMINI_MODEL="$MODEL"
+    echo "[translate] Using model: $MODEL" >&2
+
+    # Run gemini session
+    # Note: User types /cli-tran <file> or /resume inside the session
+    gemini
+    EXIT_CODE=$?
+
+    # Check status
+    if [ ! -f "$STATE_FILE" ]; then
+        echo "[translate] No state file found. Session ended." >&2
+        exit ${EXIT_CODE:-0}
+    fi
+
+    ACTIVE=$(jq -r '.active // false' "$STATE_FILE")
+    QUOTA_EXHAUSTED=$(jq -r '.quota_exhausted // false' "$STATE_FILE")
+    COMPLETED=$(jq -r '.chapters_completed // 0' "$STATE_FILE")
+    TOTAL=$(jq -r '.total_chapters // 0' "$STATE_FILE")
+
+    # All chapters done
+    if [ "$ACTIVE" = "false" ] && [ "$COMPLETED" -ge "$TOTAL" ] && [ "$TOTAL" -gt 0 ]; then
+        echo "[translate] Translation complete! $COMPLETED/$TOTAL chapters." >&2
+        exit 0
+    fi
+
+    # Quota exhausted — add to exhausted list and try next model
+    if [ "$QUOTA_EXHAUSTED" = "true" ]; then
+        EXHAUSTED="${EXHAUSTED:+$EXHAUSTED,}$MODEL"
+        echo "[translate] Model $MODEL quota exhausted. Trying next model..." >&2
+        # Reset quota_exhausted flag for next session
+        jq '.quota_exhausted = false' "$STATE_FILE" > "$STATE_FILE.tmp" \
+            && mv "$STATE_FILE.tmp" "$STATE_FILE"
+        continue
+    fi
+
+    # Session ended without completing all chapters (user exited manually?)
+    if [ "$ACTIVE" = "true" ]; then
+        echo "[translate] Session ended. $COMPLETED/$TOTAL chapters completed." >&2
+        echo "[translate] Run './translate $SOURCE_FILE' to resume." >&2
+        exit ${EXIT_CODE:-0}
+    fi
+
+    # Other state
+    echo "[translate] Session ended unexpectedly." >&2
+    exit ${EXIT_CODE:-1}
+done

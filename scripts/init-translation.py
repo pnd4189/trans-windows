@@ -2,6 +2,7 @@
 """Initialize translation state for a novel file."""
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,8 +20,9 @@ def init_translation(source_file: str, output_dir: str = None,
     """Create .translator/ directory and state.json."""
     source_path = Path(source_file).resolve()
     if not source_path.exists():
-        print(f"Error: Source file not found: {source_file}", file=sys.stderr)
-        sys.exit(1)
+        raise FileNotFoundError(f"Source file not found: {source_file}")
+    if not source_path.is_file():
+        raise ValueError(f"Source path is not a file: {source_file}")
 
     if genre not in KNOWN_GENRES:
         print(f"Warning: Unknown genre '{genre}'. Known: {', '.join(sorted(KNOWN_GENRES))}", file=sys.stderr)
@@ -64,6 +66,9 @@ def init_translation(source_file: str, output_dir: str = None,
     # Determine source language (Chinese novels)
     source_lang = 'zh'
 
+    # Detect current model from env
+    current_model = os.environ.get('GEMINI_MODEL', '').strip()
+
     state = {
         'active': True,
         'version': 1,
@@ -80,6 +85,15 @@ def init_translation(source_file: str, output_dir: str = None,
         'chapters_failed': 0,
         'started_at': now,
         'last_updated': now,
+        'model': {
+            'name': current_model,
+            'source': 'env' if current_model else 'unknown',
+            'selected_at': now,
+        },
+        'current_model': current_model,
+        'exhausted_models': [],
+        'quota_exhausted': False,
+        'model_switch_history': [],
     }
 
     # Atomic write
@@ -104,7 +118,11 @@ def main():
     genre = sys.argv[3] if len(sys.argv) > 3 else 'fantasy'
     glossary_path = sys.argv[4] if len(sys.argv) > 4 else 'glossary/default.json'
 
-    init_translation(source_file, output_dir, genre, glossary_path)
+    try:
+        init_translation(source_file, output_dir, genre, glossary_path)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == '__main__':

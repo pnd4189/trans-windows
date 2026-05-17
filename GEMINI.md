@@ -63,3 +63,11 @@ These markers control the automated loop.
 - Use `read_file` tool (NOT `@{file}`) — `@{file}` has 2000-line limit
 - Use `write_file` for output (overwrite mode)
 - Use `read_file(start_line, end_line)` for chapter extraction
+
+## Model Selection
+
+The `translate` supervisor script auto-selects the strongest Gemini Pro model:
+- Pro1 → Pro2 → Flash cascade on quota exhaustion
+- RPM (rate limit) → retry same model with backoff
+- RPD (daily quota) → cascade to next model
+- Override: `GEMINI_MODEL=gemini-2.5-pro ./translate novel.txt`
