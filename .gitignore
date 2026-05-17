@@ -6,3 +6,6 @@ dist/
 build/
 .translator/
 translations/
+
+# Test source files
+*_chuong_*.txt
