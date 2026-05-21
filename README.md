@@ -1,143 +1,130 @@
-# cli-translator
+# cli-tran
 
-Gemini CLI extension for Chinese-to-Vietnamese novel translation. Chapter-by-chapter with automatic loop control.
+Antigravity CLI skill for automated Chinese-to-Vietnamese novel translation.
+One command translates a full novel (~500 chapters) without manual intervention.
+
+## Requirements
+
+- [Antigravity CLI](https://github.com/nicepkg/antigravity-cli) (`agy`)
+- `gemini` CLI (optional — used as the primary backend; falls back to `agy` when quota exhausted)
 
 ## Installation
 
-1. Install Gemini CLI
-2. Clone this extension
-3. Add to Gemini CLI extensions directory
+```bash
+git clone https://github.com/pnd4189/cli-translator
+cd cli-translator
+./install.sh
+```
+
+`install.sh` creates a no-space symlink, copies files into
+`~/.gemini/extensions/cli-tran/`, and registers the plugin via
+`agy plugin import gemini`. Restart Antigravity CLI after install.
 
 ## Usage
 
-### Translate with Auto Model Selection (Recommended)
-```bash
-./translate novel.txt
-./translate novel.epub
+```
+/cli-tran /path/to/novel.txt           # init + translate full file
+/cli-tran --resume                     # continue an interrupted run
+/cli-tran --status                     # show progress
+/cli-tran --redo 3,7,11-15             # reset specific chapters to pending
 ```
 
-The supervisor script automatically:
-- Selects the strongest available Gemini Pro model
-- Handles quota exhaustion (Pro1 → Pro2 → Flash cascade)
-- Resumes from last completed chapter on restart
-
-### Translate Directly (Manual Model)
-```bash
-gemini
-/cli-tran novel.txt
-/cli-tran novel.epub
-```
-
-### Resume Interrupted Translation
-```
-/resume
-```
-
-### Validate Translation Quality
-```
-/validate
-```
-
-## Genre Support
-
-| Genre | Code | Description |
-|-------|------|-------------|
-| Tiên Hiệp | tienxia | Cultivation novels |
-| Kiếm Hiệp | wuxia | Martial arts novels |
-| Thành Thị | urban | Urban fantasy |
-| Lịch Sử | historical | Historical novels |
-| GameLit | gamelit | Game system novels |
-| Kinh Dị | horror | Horror novels |
-| Fantasy | fantasy | Generic fantasy |
+The skill runs an external bash driver that translates each chapter as an
+independent subprocess. It continues until every chapter is `completed` or
+`skipped`, then writes a single `*_vi.txt` file next to the source.
 
 ## Architecture
 
 ```
-User: ./translate novel.txt
-  ├─ select-model.py → detect strongest Pro model
-  ├─ export GEMINI_MODEL=<model>
-  ├─ gemini session starts
-  │   ├─ /cli-tran novel.txt → init + translate chapter 1
-  │   ├─ translate-hook.sh → deny + clearContext → loop
-  │   ├─ ... repeat until all chapters done ...
-  │   └─ if quota exhausted → hook stops session
-  ├─ supervisor detects quota → cascade to next model
-  └─ restart session with new model → resume
+/cli-tran <file>
+  │
+  ├─ scripts/init-translation.py     # detect chapters, create state.json
+  │
+  └─ scripts/auto-translate.sh       # driver loop — runs to completion
+       ├─ scripts/select-cascade.py       # pick backend (Flash → Claude Opus)
+       ├─ scripts/translate-chapter.py    # one subprocess per chapter
+       └─ scripts/advance-chapter.py      # validate output + update state
+            └─ scripts/merge-chapters.py  # final merge once all chapters done
 ```
 
-## Model Selection
+Per-novel state lives at `~/.cache/cli-tran/novels/<hash>/state.json`.
+Safe to Ctrl+C at any point — `/cli-tran --resume` picks up from the last
+completed chapter.
 
-The `translate` supervisor script implements automatic model cascade:
+## Backend cascade
 
-| Priority | Model | When Used |
-|----------|-------|-----------|
-| 1 | Pro (strongest) | Default — auto-detected from CLI history |
-| 2 | Pro (2nd strongest) | When Pro1 daily quota exhausted |
-| 3 | Flash (strongest) | When both Pro models exhausted |
+| Priority | Backend | Model |
+|----------|---------|-------|
+| 1 | `gemini -p` | gemini-2.5-flash |
+| 2 | `agy -p` | Claude Opus (configured in Antigravity settings) |
 
-### Override Model
+The driver probes each backend before each chapter run. A 5-minute negative
+cache prevents repeated dead probes; a 1-hour positive cache skips probes on
+the happy path. When all backends are exhausted the driver halts cleanly and
+tells you to resume later with `/cli-tran --resume`.
+
+Force a specific backend for testing:
 ```bash
-GEMINI_MODEL=gemini-2.5-pro ./translate novel.txt
+CLI_TRAN_FORCE_BACKEND=agy /cli-tran /path/to/novel.txt
 ```
 
-### Probe Caching
-Model availability is cached in `~/.gemini/cli-translator/model_cache.json` (1h TTL) to avoid repeated 20s probes.
+## Genre support
 
-## Project Structure
+| Genre code | Description |
+|------------|-------------|
+| `tienxia`  | Cultivation / Tiên Hiệp |
+| `wuxia`    | Martial arts / Kiếm Hiệp |
+| `urban`    | Urban fantasy / Thành Thị |
+| `historical` | Historical / Lịch Sử |
+| `gamelit`  | Game-system novels |
+| `horror`   | Horror / Kinh Dị |
+| `fantasy`  | Generic fantasy (default) |
+
+Genre is auto-detected from the first 8KB of the source file.
+
+## Project structure
 
 ```
-├── translate                   # Supervisor script (auto model selection)
-├── gemini-extension.json       # Extension manifest
-├── GEMINI.md                   # Extension context (loaded every session)
-├── commands/
-│   ├── cli-tran.toml           # All-in-one: init + translate
-│   ├── resume.toml             # Resume interrupted translation
-│   └── validate.toml           # Quality validation command
+├── install.sh                  # One-step install + agy plugin registration
+├── gemini-extension.json       # Extension manifest (read by Antigravity)
+├── plugin.json                 # Plugin metadata
+├── GEMINI.md                   # Context file loaded by the skill
 ├── hooks/
-│   ├── hooks.json              # Hook registration
-│   └── translate-hook.sh       # AfterAgent chapter loop hook + quota detection
+│   └── hooks.json              # Empty — driver architecture needs no hooks
+├── skills/
+│   └── cli-tran/
+│       └── SKILL.md            # Slash-command definition (thin delegator)
 ├── scripts/
-│   ├── lib/
-│   │   ├── __init__.py
-│   │   └── model_registry.py   # Model discovery + classification
-│   ├── select-model.py         # Model selection CLI (Pro → Pro → Flash cascade)
+│   ├── auto-translate.sh       # Bash driver loop
+│   ├── translate-chapter.py    # Per-chapter subprocess translator
+│   ├── select-cascade.py       # Backend probe + cascade logic
+│   ├── advance-chapter.py      # Validate output + mutate state.json
+│   ├── init-translation.py     # Initialize per-novel cache + state
 │   ├── detect-chapters.py      # Chapter boundary detection
-│   ├── init-translation.py     # Initialize translation state
-│   ├── get-progress.py         # Display progress summary
-│   ├── glossary-loader.py      # 2-tier glossary merge
+│   ├── merge-chapters.py       # Merge chapter files into final output
+│   ├── merge-entities.py       # Accumulate glossary entities
+│   ├── redo-chapters.py        # Reset chapters to pending
+│   ├── get-progress.py         # Progress display
+│   ├── recover-state.py        # State recovery utility
 │   ├── validate-translation.py # Quality validation
-│   └── epub2txt.py             # EPUB to TXT converter
+│   └── lib/
+│       └── novel_cache.py      # Cache directory helpers
 ├── glossary/
 │   ├── default.json            # Universal terms
 │   └── genres/                 # Genre-specific overrides
-├── skills/
-│   └── novel-translator/
-│       └── SKILL.md            # Translation expertise
-├── references/
-│   ├── translation-principles.md
-│   ├── pronoun-guide.md
-│   └── common-errors.md
-└── tests/                      # Unit tests
+└── references/                 # Translation principles + pronoun guide
 ```
 
-## Configuration
+## Quality controls
 
-### Glossary
-- `glossary/default.json` — Universal terms for all genres
-- `glossary/genres/*.json` — Genre-specific overrides
-
-### Translation Principles
-See `references/translation-principles.md`
-
-## Key Design Decisions
-
-1. **No MCP server** — TOML commands + Python scripts + built-in tools
-2. **`read_file` not `@{file}`** — 2000-line hard limit blocks novels
-3. **One chapter per iteration** — manageable context, clean error recovery
-4. **clearContext between chapters** — prevents context overflow
-5. **Glossary as HINT** — AI decides contextually, not mechanically
-6. **Pro → Pro → Flash cascade** — quality first, Flash as fallback
-7. **Supervisor pattern** — automated model switching on quota exhaustion
+- **CJK leak guard**: output with >5% Chinese characters is rejected and
+  retried automatically (5 retries per chapter before skip).
+- **First-seen-wins glossary**: once `李明 → Lý Minh` is recorded in
+  `novel-glossary.json` it is applied consistently to all subsequent chapters.
+- **Atomic writes**: chapter files and state.json are written via temp + rename
+  to prevent corruption on interrupt.
+- **flock guard**: `advance-chapter.py` takes an exclusive lock before
+  mutating state so parallel invocations cannot corrupt it.
 
 ## License
 
