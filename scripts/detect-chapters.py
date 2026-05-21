@@ -21,6 +21,66 @@ CHAPTER_PATTERNS = [
     (r'^#{1,3}\s+', 'md'),          # Markdown: ## Chapter 1
 ]
 
+# Chapter number extractors — try each in order, first match wins. Returns int or None.
+_CN_NUM_MAP = {
+    '零': 0, '〇': 0, '一': 1, '二': 2, '两': 2, '三': 3, '四': 4,
+    '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
+    '百': 100, '千': 1000, '壹': 1, '贰': 2, '叁': 3, '肆': 4, '伍': 5,
+    '陆': 6, '柒': 7, '捌': 8, '玖': 9, '拾': 10,
+}
+
+
+def _parse_cn_number(s: str) -> int | None:
+    """Parse a Chinese numeral string like '一', '十二', '百零五', '二百三十四'."""
+    if not s:
+        return None
+    if s.isdigit():
+        return int(s)
+    if any(c not in _CN_NUM_MAP for c in s):
+        return None
+    total = 0
+    section = 0
+    last = 0
+    for ch in s:
+        v = _CN_NUM_MAP[ch]
+        if v >= 10:
+            if last == 0:
+                last = 1
+            section += last * v
+            last = 0
+        else:
+            last = v
+    section += last
+    total += section
+    return total or None
+
+
+def extract_chapter_number(title: str) -> int | None:
+    """Extract the chapter number embedded in a title.
+
+    Handles: '第011章', '第十二章', 'Chapter 12', 'Chương 12', '12.', '# Chapter 12'.
+    Returns None for prologue/epilogue/non-numbered titles so caller can fall back.
+    """
+    s = title.strip()
+    m = re.match(r'^第\s*(\d+)\s*章', s)
+    if m:
+        return int(m.group(1))
+    m = re.match(r'^第\s*([零〇一二两三四五六七八九十百千壹贰叁肆伍陆柒捌玖拾]+)\s*章', s)
+    if m:
+        n = _parse_cn_number(m.group(1))
+        if n is not None:
+            return n
+    m = re.match(r'^(?:Chapter|Chương)\s+(\d+)', s, re.IGNORECASE)
+    if m:
+        return int(m.group(1))
+    m = re.match(r'^(\d+)\.\s', s)
+    if m:
+        return int(m.group(1))
+    m = re.match(r'^#{1,3}\s+(?:Chapter|Chương)?\s*(\d+)', s, re.IGNORECASE)
+    if m:
+        return int(m.group(1))
+    return None
+
 # Warn when chapter exceeds this many lines (risk of context overflow in LLM)
 MAX_CHAPTER_LINES = 5000
 
@@ -68,6 +128,7 @@ def detect_chapters(file_path: str) -> list:
             return []
         return [{
             'id': 1,
+            'display_id': 1,
             'title': '全文',
             'start_line': 1,
             'end_line': line_count,
@@ -83,8 +144,10 @@ def detect_chapters(file_path: str) -> list:
             print(f"Warning: Chapter {idx + 1} has {ch_line_count} lines (>{MAX_CHAPTER_LINES}). "
                   f"May cause context overflow during translation.", file=sys.stderr)
 
+        parsed_id = extract_chapter_number(title)
         chapters.append({
             'id': idx + 1,
+            'display_id': parsed_id if parsed_id is not None else idx + 1,
             'title': title,
             'start_line': start_line,
             'end_line': end_line,

@@ -1,0 +1,4 @@
+{
+  "name": "cli-tran",
+  "description": "Chinese → Vietnamese novel translator with chapter-loop hook driver."
+}

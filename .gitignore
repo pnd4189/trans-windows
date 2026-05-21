@@ -10,3 +10,6 @@ translations/
 
 # Test source files
 *_chuong_*.txt
+
+# Ad-hoc local outputs
+output.txt

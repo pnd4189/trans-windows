@@ -13,6 +13,26 @@ import sys
 from pathlib import Path
 
 
+def _part_path_for(ch: dict, output_dir: Path) -> Path:
+    """Resolve the chapter file path, tolerating legacy loop-id naming."""
+    recorded = ch.get("output_file")
+    if recorded:
+        p = Path(recorded)
+        if not p.is_absolute():
+            p = output_dir / p
+        if p.exists():
+            return p
+    display_id = ch.get("display_id", ch["id"])
+    loop_id = ch["id"]
+    for candidate in (
+        output_dir / f"chapter_{display_id:03d}.txt",
+        output_dir / f"chapter_{loop_id:03d}.txt",
+    ):
+        if candidate.exists():
+            return candidate
+    return output_dir / f"chapter_{display_id:03d}.txt"
+
+
 def merge(state_path: Path) -> int:
     state = json.loads(state_path.read_text(encoding="utf-8"))
     output_dir = Path(state["output_dir"])
@@ -24,18 +44,20 @@ def merge(state_path: Path) -> int:
         print("No completed chapters to merge.", file=sys.stderr)
         return 1
 
-    merged_path = output_dir.parent / f"{source_path.stem}_vi.txt"
+    # Final merged file lives next to the source, not inside the per-novel cache.
+    merged_path = source_path.parent / f"{source_path.stem}_vi.txt"
 
     parts = []
     missing = []
+    used_paths = []
     for ch in completed:
-        cid = ch["id"]
-        part_path = output_dir / f"chapter_{cid:03d}.txt"
+        part_path = _part_path_for(ch, output_dir)
         if not part_path.exists():
             missing.append(part_path.name)
             continue
         body = part_path.read_text(encoding="utf-8").strip()
         parts.append(body)
+        used_paths.append(part_path)
 
     if missing:
         print(f"Warning: {len(missing)} chapter file(s) missing: {missing}", file=sys.stderr)
@@ -47,8 +69,7 @@ def merge(state_path: Path) -> int:
     merged_path.write_text("\n\n\n".join(parts) + "\n", encoding="utf-8")
 
     deleted = 0
-    for ch in completed:
-        part_path = output_dir / f"chapter_{ch['id']:03d}.txt"
+    for part_path in used_paths:
         if part_path.exists():
             part_path.unlink()
             deleted += 1

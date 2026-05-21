@@ -85,5 +85,12 @@ def recover_state(state_file: str):
     print(f"Recovery complete. Completed: {completed_count}/{state['total_chapters']}. Next: {next_chapter}")
 
 if __name__ == '__main__':
-    state_file = sys.argv[1] if len(sys.argv) > 1 else '.translator/state.json'
+    if len(sys.argv) > 1:
+        state_file = sys.argv[1]
+    else:
+        pointer = Path("/tmp/.cli-tran-state-path")
+        if not pointer.exists():
+            print("Error: No state file pointer found. Pass state.json path explicitly.", file=sys.stderr)
+            sys.exit(1)
+        state_file = pointer.read_text(encoding="utf-8").strip()
     recover_state(state_file)
