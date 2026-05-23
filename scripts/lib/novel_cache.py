@@ -31,7 +31,14 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-CACHE_ROOT = Path(os.environ.get("CLI_TRAN_CACHE_ROOT", str(Path.home() / ".cache" / "cli-tran")))
+try:
+    from lib.platform_paths import cache_root as _cache_root
+    from lib.io_utils import parse_iso as _parse_iso
+except ImportError:
+    from platform_paths import cache_root as _cache_root
+    from io_utils import parse_iso as _parse_iso
+
+CACHE_ROOT = _cache_root()
 NOVELS_DIR = CACHE_ROOT / "novels"
 TTL_SECS = 24 * 3600  # 24h after novel completion
 
@@ -85,16 +92,6 @@ def hook_log_path(source_path: Path) -> Path:
 
 def conflicts_log_path(source_path: Path) -> Path:
     return novel_cache_dir(source_path) / "glossary-conflicts.log"
-
-
-def _parse_iso(ts: str) -> float:
-    """Parse ISO timestamp to epoch seconds; return 0.0 on failure."""
-    if not ts:
-        return 0.0
-    try:
-        return datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
-    except (ValueError, TypeError):
-        return 0.0
 
 
 def cleanup_stale_novels(now: float | None = None) -> list[str]:

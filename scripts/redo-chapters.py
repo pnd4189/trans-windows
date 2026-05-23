@@ -23,6 +23,12 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+_scripts = str(Path(__file__).resolve().parent)
+if _scripts not in sys.path:
+    sys.path.insert(0, _scripts)
+from lib.file_lock import acquire as _acquire_lock, release as _release_lock
+from lib.io_utils import atomic_write_json as _atomic_write_json
+
 
 def parse_spec(spec: str, total: int) -> list[int]:
     spec = spec.strip().lower()
@@ -97,9 +103,15 @@ def main() -> int:
     state["active"] = True
     state["last_updated"] = now
 
-    tmp = state_file.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.rename(state_file)
+    # Write under file lock to prevent concurrent state corruption
+    lock_path = state_file.parent / ".state.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    fd = _acquire_lock(str(lock_path), blocking=True)
+    try:
+        _atomic_write_json(state_file, state)
+    finally:
+        if fd is not None:
+            _release_lock(fd)
 
     print(f"Reset {reset_count} chapter(s): {sorted(target_set)}")
     print(f"current_chapter rewound to {min(targets)}")

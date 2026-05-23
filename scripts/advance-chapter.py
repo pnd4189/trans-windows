@@ -31,13 +31,17 @@ Exit code 0 always; caller inspects JSON.
 from __future__ import annotations
 
 import argparse
-import errno
-import fcntl
 import json
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+_scripts = str(Path(__file__).resolve().parent)
+if _scripts not in sys.path:
+    sys.path.insert(0, _scripts)
+from lib.platform_paths import state_pointer_path as _pointer_path
+from lib.io_utils import atomic_write_json as _atomic_write_json
 
 CJK_FATAL_BP = 500   # >5% Chinese chars => fail and retry
 CJK_WARN_BP = 100    # 1-5% => warn but accept
@@ -59,12 +63,6 @@ def _cjk_ratio_bp(text: str) -> int:
 
 def _read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _atomic_write_json(path: Path, data: dict) -> None:
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(path)
 
 
 def _merge_entities(state_file: Path, chapter_id: int, log_path: Path) -> None:
@@ -95,7 +93,7 @@ def _finalize_if_done(state: dict, state_file: Path, log_path: Path) -> bool:
 
     # Drop the global pointer so future hook fires no-op.
     try:
-        Path("/tmp/.cli-tran-state-path").unlink(missing_ok=True)
+        _pointer_path().unlink(missing_ok=True)
     except OSError:
         pass
 
@@ -287,15 +285,15 @@ def main() -> int:
     lock_path = novel_dir / ".state.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Exclusive lock for the duration of the mutation; matches translate-hook.sh.
-    with lock_path.open("w") as lock_fp:
-        try:
-            fcntl.flock(lock_fp, fcntl.LOCK_EX)
-        except OSError as exc:
-            if exc.errno not in (errno.EWOULDBLOCK, errno.EACCES):
-                raise
+    from lib.file_lock import acquire, release
+    fd = acquire(str(lock_path), blocking=True)
+    if fd is None:
+        print(json.dumps({"action": "done", "fail_reason": "lock contention"}))
+        return 2
+    try:
         result = advance(args.state, args.chapter, args.output_file, args.fail_reason)
-        fcntl.flock(lock_fp, fcntl.LOCK_UN)
+    finally:
+        release(fd)
 
     print(json.dumps(result, ensure_ascii=False))
     return 0

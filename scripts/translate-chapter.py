@@ -1,33 +1,24 @@
 #!/usr/bin/env python3
 """
-translate-chapter.py — Translate ONE chapter via gemini -p or agy -p subprocess.
+translate-chapter.py — Translate ONE chapter via agy -p subprocess.
 
-This is the per-iteration unit that the auto-translate.sh driver invokes.
-It encapsulates everything that previously happened inside an interactive
-agent turn: prompt construction, subprocess call, response parsing, file
-writes. Keeps the bash driver thin.
+This is the per-iteration unit that the auto-translate.py driver invokes.
+It encapsulates prompt construction, subprocess call, response parsing, file
+writes.
 
 Args:
   --state <path>     per-novel state.json
   --chapter <id>     1-indexed chapter id (state.chapters[id-1])
-  --backend <name>   "gemini" | "agy"
-  --model <name>     model name for gemini backend (ignored for agy)
+  --backend <name>   "agy"
+  --model <name>     model name (informational, agy uses its own config)
 
 Exit codes:
   0   chapter translated and files written
-  1   transient failure (driver retries with same backend)
+  1   transient failure (driver retries)
   2   backend-level failure (quota/permission) -- driver should cascade
   3   fatal config error (missing source/glossary) -- driver should halt
 
-Stdout: JSON object describing the outcome:
-  {
-    "status": "ok" | "retry" | "cascade" | "fatal",
-    "output_file": "...",
-    "entities_file": "...",
-    "elapsed_secs": N,
-    "model": "...",
-    "fail_reason": "..."  (when status != "ok")
-  }
+Stdout: JSON object describing the outcome.
 """
 
 from __future__ import annotations
@@ -36,22 +27,18 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-GEMINI_PROBE_FLAGS = [
-    "-e", "__none__",
-    "--allowed-mcp-server-names", "__none__",
-    "--skip-trust",
-]
-SUBPROCESS_TIMEOUT_SECS = 600
+_scripts = str(Path(__file__).resolve().parent)
+if _scripts not in sys.path:
+    sys.path.insert(0, _scripts)
+from lib.io_utils import atomic_write_json as _atomic_write_json, QUOTA_MARKERS
 
-QUOTA_MARKERS = (
-    "RESOURCE_EXHAUSTED", "QUOTA_EXHAUSTED", "Daily quota",
-    "Per-minute quota", "quota exhausted", "PERMISSION_DENIED",
-)
+SUBPROCESS_TIMEOUT_SECS = 600
 
 # Lines that the gemini/agy CLIs or skill-conflict warnings prepend before/after
 # the real model output. We strip these as best-effort.
@@ -85,38 +72,40 @@ TRANSLATION_PREAMBLES = (
 )
 
 
-def _strip_env() -> dict:
-    """Strip API-key vars so subprocess uses OAuth like the parent shell."""
+def _clean_env() -> dict:
+    """Strip API-key vars to prevent auth confusion in subprocess."""
+    from lib.io_utils import API_KEY_STRIP
     env = os.environ.copy()
-    for k in ("GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENAI_API_KEY",
-              "GOOGLE_GENAI_USE_VERTEXAI", "GOOGLE_GENAI_USE_GCA",
-              "GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_CLOUD_PROJECT",
-              "VERTEXAI_PROJECT", "VERTEXAI_LOCATION"):
+    for k in API_KEY_STRIP:
         env.pop(k, None)
     return env
 
 
 def _read_source_chunk(path: Path, start: int, end: int) -> str:
     """Return lines [start, end] inclusive, 1-indexed."""
-    with path.open("r", encoding="utf-8", errors="replace") as f:
-        lines = f.readlines()
+    from itertools import islice
     if start < 1:
         start = 1
-    if end > len(lines):
-        end = len(lines)
-    return "".join(lines[start - 1:end])
+    with path.open("r", encoding="utf-8", errors="replace") as f:
+        chunk = list(islice(f, start - 1, end))
+    return "".join(chunk)
 
 
 def _load_glossary(repo_root: Path, genre: str, novel_glossary: Path | None) -> dict:
-    sys.path.insert(0, str(repo_root / "scripts"))
+    _scripts = str(repo_root / "scripts")
+    if _scripts not in sys.path:
+        sys.path.insert(0, _scripts)
     try:
         from glossary_loader import load_glossary  # type: ignore
     except ImportError:
-        # The loader file is `glossary-loader.py` (hyphen) -- import via exec.
-        loader_src = (repo_root / "scripts" / "glossary-loader.py").read_text(encoding="utf-8")
-        ns: dict = {}
-        exec(compile(loader_src, "glossary-loader.py", "exec"), ns)
-        load_glossary = ns["load_glossary"]
+        import importlib.util
+        loader_path = str(repo_root / "scripts" / "glossary-loader.py")
+        spec = importlib.util.spec_from_file_location("glossary_loader", loader_path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Cannot load glossary-loader.py from {loader_path}")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        load_glossary = mod.load_glossary
     glossary_dir = repo_root / "glossary"
     return load_glossary(genre, glossary_dir, novel_glossary)
 
@@ -167,17 +156,13 @@ Source chapter:
 
 
 def _invoke_backend(backend: str, model: str, prompt: str) -> tuple[int, str, str]:
-    if backend == "gemini":
-        cmd = ["gemini", "-m", model, "--yolo", "--raw-output", *GEMINI_PROBE_FLAGS, "-p", prompt]
-    elif backend == "agy":
-        cmd = ["agy", "-p", prompt]
-    else:
-        return 99, "", f"unknown backend {backend}"
+    agy_path = shutil.which("agy") or "agy"
+    cmd = [agy_path, "-p", prompt]
 
     try:
         proc = subprocess.run(
             cmd, capture_output=True, text=True,
-            timeout=SUBPROCESS_TIMEOUT_SECS, env=_strip_env(),
+            timeout=SUBPROCESS_TIMEOUT_SECS, env=_clean_env(),
         )
     except subprocess.TimeoutExpired:
         return 124, "", "subprocess timeout"
@@ -243,8 +228,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--state", required=True, type=Path)
     ap.add_argument("--chapter", required=True, type=int)
-    ap.add_argument("--backend", required=True, choices=("gemini", "agy"))
-    ap.add_argument("--model", default="gemini-2.5-flash")
+    ap.add_argument("--backend", required=True, choices=("agy",))
+    ap.add_argument("--model", default="")
     args = ap.parse_args()
 
     started = time.time()
@@ -350,7 +335,11 @@ def main() -> int:
     # pass via extract-entities.py (cheaper, can run on completed Vietnamese).
     tmp = output_file.with_suffix(".txt.tmp")
     tmp.write_text(translation + "\n", encoding="utf-8")
-    tmp.replace(output_file)
+    try:
+        tmp.replace(output_file)
+    except OSError:
+        shutil.copy2(tmp, output_file)
+        tmp.unlink(missing_ok=True)
 
     print(json.dumps({
         "status": "ok",

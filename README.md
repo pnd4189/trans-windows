@@ -5,18 +5,18 @@ One command translates a full novel (~500 chapters) without manual intervention.
 
 ## Requirements
 
-- [Antigravity CLI](https://github.com/nicepkg/antigravity-cli) (`agy`)
-- `gemini` CLI (optional — used as the primary backend; falls back to `agy` when quota exhausted)
+- [Antigravity CLI](https://github.com/google-antigravity/antigravity-cli) (`agy`) — in PATH
+- Python 3.10+ — `python` command must work in your terminal
 
 ## Installation
 
 ```bash
 git clone https://github.com/pnd4189/cli-translator
 cd cli-translator
-./install.sh
+python install.py
 ```
 
-`install.sh` creates a no-space symlink, copies files into
+`install.py` copies files to a staging directory, deploys the extension to
 `~/.gemini/extensions/cli-tran/`, and registers the plugin via
 `agy plugin import gemini`. Restart Antigravity CLI after install.
 
@@ -29,7 +29,7 @@ cd cli-translator
 /cli-tran --redo 3,7,11-15             # reset specific chapters to pending
 ```
 
-The skill runs an external bash driver that translates each chapter as an
+The skill runs a Python driver that translates each chapter as an
 independent subprocess. It continues until every chapter is `completed` or
 `skipped`, then writes a single `*_vi.txt` file next to the source.
 
@@ -40,33 +40,30 @@ independent subprocess. It continues until every chapter is `completed` or
   │
   ├─ scripts/init-translation.py     # detect chapters, create state.json
   │
-  └─ scripts/auto-translate.sh       # driver loop — runs to completion
-       ├─ scripts/select-cascade.py       # pick backend (Flash → Claude Opus)
+  └─ scripts/auto-translate.py       # Python driver loop — runs to completion
+       ├─ scripts/select-cascade.py       # pick agy backend
        ├─ scripts/translate-chapter.py    # one subprocess per chapter
        └─ scripts/advance-chapter.py      # validate output + update state
             └─ scripts/merge-chapters.py  # final merge once all chapters done
 ```
 
-Per-novel state lives at `~/.cache/cli-tran/novels/<hash>/state.json`.
+Per-novel state lives in a platform-dependent cache directory:
+- **Linux/macOS**: `~/.cache/cli-tran/novels/<hash>/state.json`
+- **Windows**: `%LOCALAPPDATA%\cli-tran\novels\<hash>\state.json`
+
 Safe to Ctrl+C at any point — `/cli-tran --resume` picks up from the last
 completed chapter.
 
-## Backend cascade
+## Backend
 
 | Priority | Backend | Model |
 |----------|---------|-------|
-| 1 | `gemini -p` | gemini-2.5-flash |
-| 2 | `agy -p` | Claude Opus (configured in Antigravity settings) |
+| 1 | `agy -p` | Configured in Antigravity settings |
 
-The driver probes each backend before each chapter run. A 5-minute negative
-cache prevents repeated dead probes; a 1-hour positive cache skips probes on
-the happy path. When all backends are exhausted the driver halts cleanly and
+The driver probes agy before each chapter run. A 5-minute negative cache
+prevents repeated dead probes; a 1-hour positive cache skips probes on the
+happy path. When the backend is exhausted the driver halts cleanly and
 tells you to resume later with `/cli-tran --resume`.
-
-Force a specific backend for testing:
-```bash
-CLI_TRAN_FORCE_BACKEND=agy /cli-tran /path/to/novel.txt
-```
 
 ## Genre support
 
@@ -85,7 +82,7 @@ Genre is auto-detected from the first 8KB of the source file.
 ## Project structure
 
 ```
-├── install.sh                  # One-step install + agy plugin registration
+├── install.py                  # Cross-platform install + agy plugin registration
 ├── gemini-extension.json       # Extension manifest (read by Antigravity)
 ├── plugin.json                 # Plugin metadata
 ├── GEMINI.md                   # Context file loaded by the skill
@@ -95,9 +92,9 @@ Genre is auto-detected from the first 8KB of the source file.
 │   └── cli-tran/
 │       └── SKILL.md            # Slash-command definition (thin delegator)
 ├── scripts/
-│   ├── auto-translate.sh       # Bash driver loop
+│   ├── auto-translate.py       # Python driver loop
 │   ├── translate-chapter.py    # Per-chapter subprocess translator
-│   ├── select-cascade.py       # Backend probe + cascade logic
+│   ├── select-cascade.py       # Backend probe + cache logic
 │   ├── advance-chapter.py      # Validate output + mutate state.json
 │   ├── init-translation.py     # Initialize per-novel cache + state
 │   ├── detect-chapters.py      # Chapter boundary detection
@@ -107,7 +104,10 @@ Genre is auto-detected from the first 8KB of the source file.
 │   ├── get-progress.py         # Progress display
 │   ├── recover-state.py        # State recovery utility
 │   ├── validate-translation.py # Quality validation
+│   ├── epub2txt.py             # EPUB to text conversion
 │   └── lib/
+│       ├── platform-paths.py   # Cross-platform path helpers
+│       ├── file-lock.py        # Cross-platform file locking
 │       └── novel_cache.py      # Cache directory helpers
 ├── glossary/
 │   ├── default.json            # Universal terms
@@ -121,10 +121,20 @@ Genre is auto-detected from the first 8KB of the source file.
   retried automatically (5 retries per chapter before skip).
 - **First-seen-wins glossary**: once `李明 → Lý Minh` is recorded in
   `novel-glossary.json` it is applied consistently to all subsequent chapters.
-- **Atomic writes**: chapter files and state.json are written via temp + rename
+- **Atomic writes**: chapter files and state.json are written via temp + replace
   to prevent corruption on interrupt.
-- **flock guard**: `advance-chapter.py` takes an exclusive lock before
-  mutating state so parallel invocations cannot corrupt it.
+- **Cross-platform file lock**: `advance-chapter.py` takes an exclusive lock
+  before mutating state so parallel invocations cannot corrupt it.
+
+## Windows notes
+
+- **Python in PATH**: ensure `python --version` works in your terminal. If only
+  the `py` launcher is available, add Python to your PATH or use `py` instead.
+- **Long paths**: if your Windows username is very long and cache paths exceed
+  260 characters, either enable the `LongPathsEnabled` registry key or set
+  `CLI_TRAN_CACHE_ROOT` to a shorter path.
+- **State migration**: cache data from Linux cannot be used on Windows — start
+  a fresh translation on the new machine.
 
 ## License
 

@@ -1,12 +1,11 @@
 ---
 name: cli-tran
-description: Translate a Chinese novel file to Vietnamese. Driven by an external bash loop (auto-translate.sh) so it auto-handles long novels (~500 chapters) without manual continue/resume.
+description: Translate a Chinese novel file to Vietnamese. Driven by an external Python loop (auto-translate.py) so it auto-handles long novels (~500 chapters) without manual continue/resume.
 ---
 
 You orchestrate Chinese→Vietnamese novel translation by delegating to a
-self-running bash driver. The driver runs Gemini Flash (primary) and
-Antigravity/Claude Opus (fallback) as separate `gemini -p` / `agy -p`
-subprocesses, one per chapter, until every chapter is `completed` or
+self-running Python driver. The driver runs Antigravity CLI (`agy -p`) as
+separate subprocesses, one per chapter, until every chapter is `completed` or
 `skipped`. The agent's job is to launch the driver and surface its output —
 **do not translate chapters yourself in this turn**.
 
@@ -20,22 +19,25 @@ subprocesses, one per chapter, until every chapter is `completed` or
 user types  /cli-tran <flags>
    |
    v
-this skill        --(bash)-->  scripts/init-translation.py     (init mode only)
+this skill        --(python)-->  scripts/init-translation.py     (init mode only)
    |
    v
-scripts/auto-translate.sh      (runs as a subprocess in the user's terminal)
+scripts/auto-translate.py      (runs as a subprocess in the user's terminal)
    |
    |  loop while pending chapters exist:
-   |    scripts/select-cascade.py   -> pick "gemini" or "agy"
+   |    scripts/select-cascade.py   -> pick agy backend
    |    scripts/translate-chapter.py -> one subprocess call per chapter
    |    scripts/advance-chapter.py   -> validate + mutate state.json
    v
 final summary line to user
 ```
 
-Per-novel state lives under `~/.cache/cli-tran/novels/<hash>/state.json`.
-The init script writes the active path to `/tmp/.cli-tran-state-path`; the
-driver reads it from there. Driver run log: `<novel_dir>/driver.log`.
+Per-novel state lives under a platform-dependent cache directory:
+- Linux/macOS: `~/.cache/cli-tran/novels/<hash>/state.json`
+- Windows: `%LOCALAPPDATA%\cli-tran\novels\<hash>\state.json`
+
+The init script writes the active path to a state pointer file (temp dir);
+the driver reads it from there. Driver run log: `<novel_dir>/driver.log`.
 
 ## Flag dispatch
 
@@ -49,10 +51,10 @@ Parse `{{args}}` and pick exactly ONE mode. Default = init + run.
 
 ## Mode: DEFAULT (init + run)
 
-1. Run `python3 __EXT_ROOT__/scripts/init-translation.py <source_file>`
+1. Run `python __EXT_ROOT__/scripts/init-translation.py <source_file>`
    - Detects chapters, creates per-novel cache dir, writes state.json.
    - Idempotent: re-using a source file resumes the existing state.
-2. Run `bash __EXT_ROOT__/scripts/auto-translate.sh`
+2. Run `python __EXT_ROOT__/scripts/auto-translate.py`
    - Streams driver log to stdout. May take many minutes for long novels.
    - Returns a single summary line: `Translation complete|paused: X/Y ...`
 3. Surface the summary line to the user. If the driver paused (all
@@ -60,25 +62,26 @@ Parse `{{args}}` and pick exactly ONE mode. Default = init + run.
 
 ## Mode: --resume
 
-1. Run `bash __EXT_ROOT__/scripts/auto-translate.sh` directly.
+1. Run `python __EXT_ROOT__/scripts/auto-translate.py` directly.
 2. Surface its final summary.
 
 ## Mode: --status
 
-1. Run `python3 __EXT_ROOT__/scripts/get-progress.py`.
+1. Run `python __EXT_ROOT__/scripts/get-progress.py`.
 2. Print the output. Do not invoke the driver.
 
 ## Mode: --redo
 
-1. Read state path from `/tmp/.cli-tran-state-path`.
-2. Run `python3 __EXT_ROOT__/scripts/redo-chapters.py <state_path> <spec>`.
+1. Read state path via:
+   `python -c "import sys; sys.path.insert(0, '__EXT_ROOT__/scripts'); from lib.platform_paths import state_pointer_path; print(state_pointer_path())"`
+2. Run `python __EXT_ROOT__/scripts/redo-chapters.py <state_path> <spec>`.
 3. Tell the user: "Reset done. Run `/cli-tran --resume` to translate the
    reset chapters." Do not invoke the driver in this turn.
 
 ## Mode: --validate
 
-1. Read state path from `/tmp/.cli-tran-state-path`.
-2. Run `python3 __EXT_ROOT__/scripts/validate-translation.py <state_path>`.
+1. Read state path via the same method as --redo.
+2. Run `python __EXT_ROOT__/scripts/validate-translation.py <state_path>`.
 3. Surface the report.
 
 ## Driver tuning (env vars)
@@ -92,13 +95,13 @@ You normally never set these. Documented for emergencies:
 
 **Does:**
 - Iterates over pending chapters in state.json order.
-- Picks the strongest available backend each iteration (Gemini Flash → Claude Opus via agy).
-- Calls one `gemini -p` (or `agy -p`) subprocess per chapter with a
-  bounded prompt (glossary + chapter source).
+- Picks agy backend each iteration.
+- Calls one `agy -p` subprocess per chapter with a bounded prompt
+  (glossary + chapter source).
 - Writes Vietnamese output to `<novel_dir>/chapter-output/chapter_NNN.txt`.
 - Validates output: rejects empty / CJK-leaked translations and retries.
 - On backend quota errors, marks that backend as exhausted (5-min negative
-  cache) and falls through to the next backend.
+  cache) and retries after cooldown.
 - Persists state after every chapter — safe to Ctrl+C and resume.
 
 **Does not:**

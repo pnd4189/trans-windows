@@ -3,6 +3,7 @@
 
 import json
 import os
+import shutil
 import sys
 import uuid
 import importlib.util
@@ -11,9 +12,10 @@ from pathlib import Path
 
 # Import detect-chapters from same directory
 _scripts_dir = str(Path(__file__).parent)
-sys.path.insert(0, _scripts_dir)
+if _scripts_dir not in sys.path:
+    sys.path.insert(0, _scripts_dir)
 
-_spec = importlib.util.spec_from_file_location("detect_chapters", f"{_scripts_dir}/detect-chapters.py")
+_spec = importlib.util.spec_from_file_location("detect_chapters", str(Path(_scripts_dir) / "detect-chapters.py"))
 if _spec is None or _spec.loader is None:
     print(f"Error: Could not load detect-chapters.py from {_scripts_dir}", file=sys.stderr)
     sys.exit(1)
@@ -28,8 +30,22 @@ from lib.novel_cache import (
     entities_dir,
     cleanup_stale_novels,
 )
+from lib.file_lock import acquire as _acquire_lock, release as _release_lock
 
 MAX_RETRIES_PER_CHAPTER = 5
+
+
+def _atomic_write_state(state_file: Path, data: dict) -> None:
+    """Write state.json atomically under file lock."""
+    lock_path = state_file.parent / ".state.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    fd = _acquire_lock(str(lock_path), blocking=True)
+    try:
+        from lib.io_utils import atomic_write_json
+        atomic_write_json(state_file, data)
+    finally:
+        if fd is not None:
+            _release_lock(fd)
 
 
 KNOWN_GENRES = {'tienxia', 'wuxia', 'urban', 'historical', 'gamelit', 'horror', 'fantasy'}
@@ -80,9 +96,7 @@ def init_translation(source_file: str, output_dir: str | None = None,
                 existing['last_updated'] = datetime.now(timezone.utc).isoformat()
                 mutated = True
                 if mutated:
-                    tmp = existing_state_file.with_suffix('.json.tmp')
-                    tmp.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding='utf-8')
-                    tmp.rename(existing_state_file)
+                    _atomic_write_state(existing_state_file, existing)
 
                 print(f"Translation already in progress: {existing['total_chapters']} chapters")
                 print(f"State file: {existing_state_file}")
@@ -197,11 +211,9 @@ def init_translation(source_file: str, output_dir: str | None = None,
         'model_switch_history': [],
     }
 
-    # Atomic write
+    # Atomic write (under file lock)
     state_file = existing_state_file
-    tmp_file = state_file.with_suffix('.json.tmp')
-    tmp_file.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding='utf-8')
-    tmp_file.rename(state_file)
+    _atomic_write_state(state_file, state)
 
     _write_state_pointer(state_file)
 
@@ -220,7 +232,7 @@ def _auto_detect_genre(source_path: Path) -> str | None:
         return None
     try:
         _gl_spec = importlib.util.spec_from_file_location(
-            "glossary_loader", f"{_scripts_dir}/glossary-loader.py"
+            "glossary_loader", str(Path(_scripts_dir) / "glossary-loader.py")
         )
         if _gl_spec is None or _gl_spec.loader is None:
             return None
@@ -239,7 +251,7 @@ def _trigger_merge(state_file: Path) -> None:
         return
     try:
         result = subprocess.run(
-            ["python3", str(merge_script), str(state_file)],
+            [sys.executable, str(merge_script), str(state_file)],
             capture_output=True, text=True, timeout=120,
         )
         if result.stdout:
@@ -259,7 +271,8 @@ def _write_state_pointer(state_file: Path) -> None:
     unsuffixed pointer is sufficient because only one /cli-tran session runs
     per agy instance.
     """
-    Path('/tmp/.cli-tran-state-path').write_text(str(state_file), encoding='utf-8')
+    from lib.platform_paths import state_pointer_path as _spp
+    _spp().write_text(str(state_file), encoding='utf-8')
 
 
 def main():

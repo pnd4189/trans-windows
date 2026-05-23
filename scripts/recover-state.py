@@ -2,9 +2,17 @@
 """Recover corrupted state.json by scanning the output directory for completed chapters."""
 
 import json
+import shutil
 import sys
 from pathlib import Path
 from datetime import datetime, timezone
+
+_scripts = str(Path(__file__).resolve().parent)
+if _scripts not in sys.path:
+    sys.path.insert(0, _scripts)
+from lib.platform_paths import state_pointer_path as _pointer_path
+from lib.file_lock import acquire as _acquire_lock, release as _release_lock
+from lib.io_utils import atomic_write_json
 
 def recover_state(state_file: str):
     state_path = Path(state_file)
@@ -42,27 +50,27 @@ def recover_state(state_file: str):
     print(f"Scanning {output_dir} for completed chapters...")
     completed_count = 0
     for chapter in state['chapters']:
-        chapter_id = chapter['id']
-        expected_file = f"chapter_{chapter_id:03d}.txt"
+        display_id = chapter.get('display_id', chapter['id'])
+        expected_file = f"chapter_{display_id:03d}.txt"
         file_path = output_dir / expected_file
         
         if file_path.exists():
             if chapter['status'] != 'completed':
-                print(f"Found completed chapter {chapter_id} ({expected_file})")
+                print(f"Found completed chapter {display_id} ({expected_file})")
                 chapter['status'] = 'completed'
-                chapter['output_file'] = expected_file
+                chapter['output_file'] = str(file_path)
                 if not chapter['translated_at']:
                     chapter['translated_at'] = datetime.fromtimestamp(file_path.stat().st_mtime, timezone.utc).isoformat()
             completed_count += 1
         elif chapter['status'] == 'completed':
              # Missing file but marked as completed
-             print(f"Warning: Chapter {chapter_id} marked as completed but {expected_file} is missing. Resetting to pending.")
+             print(f"Warning: Chapter {display_id} marked as completed but {expected_file} is missing. Resetting to pending.")
              chapter['status'] = 'pending'
              chapter['output_file'] = None
 
     # Update counters
     state['chapters_completed'] = completed_count
-    state['chapters_failed'] = sum(1 for ch in state['chapters'] if ch['status'] == 'failed')
+    state['chapters_failed'] = sum(1 for ch in state['chapters'] if ch['status'] == 'skipped')
     
     # Find next chapter
     next_chapter = 1
@@ -78,17 +86,23 @@ def recover_state(state_file: str):
     state['current_chapter'] = next_chapter
     state['last_updated'] = datetime.now(timezone.utc).isoformat()
 
-    # Save recovered state
-    with open(state_path, 'w', encoding='utf-8') as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
-    
+    # Save recovered state under file lock to prevent concurrent corruption
+    lock_path = state_path.parent / ".state.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    fd = _acquire_lock(str(lock_path), blocking=True)
+    try:
+        atomic_write_json(state_path, state)
+    finally:
+        if fd is not None:
+            _release_lock(fd)
+
     print(f"Recovery complete. Completed: {completed_count}/{state['total_chapters']}. Next: {next_chapter}")
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         state_file = sys.argv[1]
     else:
-        pointer = Path("/tmp/.cli-tran-state-path")
+        pointer = _pointer_path()
         if not pointer.exists():
             print("Error: No state file pointer found. Pass state.json path explicitly.", file=sys.stderr)
             sys.exit(1)

@@ -6,27 +6,24 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+_scripts = str(Path(__file__).resolve().parent)
+if _scripts not in sys.path:
+    sys.path.insert(0, _scripts)
+from lib.platform_paths import state_pointer_path as _pointer_path
+from lib.io_utils import parse_iso_dt as _parse_iso
+
 
 def _resolve_state_file(arg: str | None) -> Path | None:
     if arg:
         p = Path(arg)
         if p.exists():
             return p
-    pointer = Path("/tmp/.cli-tran-state-path")
+    pointer = _pointer_path()
     if pointer.exists():
         target = Path(pointer.read_text(encoding="utf-8").strip())
         if target.exists():
             return target
     return None
-
-
-def _parse_iso(ts: str | None) -> datetime | None:
-    if not ts:
-        return None
-    try:
-        return datetime.fromisoformat(ts.replace("Z", "+00:00"))
-    except (ValueError, TypeError):
-        return None
 
 
 def _format_duration(seconds: float) -> str:

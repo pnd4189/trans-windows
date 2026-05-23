@@ -2,22 +2,15 @@
 """
 select-cascade.py — Pick the next backend for the translation loop.
 
-New cascade (replaces Pro1->Pro2):
-  1. gemini-2.5-flash     (via `gemini -p -m <name>`)  -- strongest text Flash
-  2. agy                  (via `agy -p`)               -- uses Claude Opus from
-                                                          ~/.gemini/antigravity-cli/settings.json
-  3. ""                   -- nothing left; caller halts
+Single backend: agy (via `agy -p`), uses the model configured in
+~/.gemini/antigravity-cli/settings.json.
 
-A 5-minute negative cache (per-novel) tracks recently-failed backends so the
-loop does not re-probe a dead model on every chapter. A 1-hour positive cache
+A 5-minute negative cache (per-novel) tracks recently-failed probes so the
+loop does not re-probe a dead backend on every chapter. A 1-hour positive cache
 short-circuits the probe on the happy path.
 
 Usage:
-  python3 select-cascade.py --state <state.json> [--mark-fail <backend>] [--json]
-
-`--mark-fail` records the backend as exhausted (for the negative-cache window)
-and then prints the next backend in the chain. This is the call shape the
-driver uses after a subprocess returns a quota / RESOURCE_EXHAUSTED error.
+  python select-cascade.py --state <state.json> [--mark-fail <backend>] [--json]
 """
 
 from __future__ import annotations
@@ -31,20 +24,16 @@ import sys
 import time
 from pathlib import Path
 
-PROBE_TIMEOUT_SECS = 60  # Claude Opus cold-start in agy can exceed 20s.
+_scripts = str(Path(__file__).resolve().parent)
+if _scripts not in sys.path:
+    sys.path.insert(0, _scripts)
+from lib.io_utils import atomic_write_json as _atomic_write_json, API_KEY_STRIP as _API_KEY_STRIP
+
+PROBE_TIMEOUT_SECS = 60
 CACHE_TTL_ALIVE = 3600
 CACHE_TTL_DEAD = 300
 
-GEMINI_FLASH_MODEL = "gemini-2.5-flash"
-
-BACKENDS = ("gemini", "agy")
-
-_API_KEY_STRIP = (
-    "GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_GENAI_API_KEY",
-    "GOOGLE_GENAI_USE_VERTEXAI", "GOOGLE_GENAI_USE_GCA",
-    "GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_CLOUD_PROJECT",
-    "VERTEXAI_PROJECT", "VERTEXAI_LOCATION",
-)
+BACKENDS = ("agy",)
 
 
 def _oauth_env() -> dict:
@@ -69,40 +58,13 @@ def _load_cache(state_file: Path) -> dict:
 
 
 def _save_cache(state_file: Path, cache: dict) -> None:
-    p = _cache_path(state_file)
-    p.write_text(json.dumps(cache, indent=2), encoding="utf-8")
+    _atomic_write_json(_cache_path(state_file), cache)
 
 
 def _is_fresh(entry: dict) -> bool:
     probed_at = entry.get("probed_at", 0)
     ttl = CACHE_TTL_ALIVE if entry.get("alive") else CACHE_TTL_DEAD
     return (time.time() - probed_at) < ttl
-
-
-def _probe_gemini() -> tuple[bool, str]:
-    if not shutil.which("gemini"):
-        return False, "gemini CLI not installed"
-    cmd = [
-        "gemini", "-p", "OK", "-m", GEMINI_FLASH_MODEL, "--yolo",
-        "-e", "__none__",
-        "--allowed-mcp-server-names", "__none__",
-        "--skip-trust",
-    ]
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True,
-                              timeout=PROBE_TIMEOUT_SECS, env=_oauth_env())
-    except subprocess.TimeoutExpired:
-        return False, "probe timeout"
-    except FileNotFoundError:
-        return False, "gemini CLI missing"
-    if proc.returncode != 0:
-        return False, f"exit {proc.returncode}: {(proc.stderr or '').strip()[:200]}"
-    blob = (proc.stdout or "") + (proc.stderr or "")
-    for marker in ("Daily quota", "Per-minute quota", "RESOURCE_EXHAUSTED",
-                   "QUOTA_EXHAUSTED", "PERMISSION_DENIED"):
-        if marker in blob:
-            return False, marker
-    return True, "ok"
 
 
 def _probe_agy() -> tuple[bool, str]:
@@ -118,13 +80,14 @@ def _probe_agy() -> tuple[bool, str]:
         return False, f"exit {proc.returncode}: {(proc.stderr or '').strip()[:200]}"
     blob = (proc.stdout or "") + (proc.stderr or "")
     for marker in ("RESOURCE_EXHAUSTED", "QUOTA_EXHAUSTED", "PERMISSION_DENIED",
-                   "quota exhausted", "Daily quota"):
+                   "quota exhausted", "Daily quota", "Per-minute quota",
+                   "rate_limit", "429"):
         if marker in blob:
             return False, marker
     return True, "ok"
 
 
-PROBES = {"gemini": _probe_gemini, "agy": _probe_agy}
+PROBES = {"agy": _probe_agy}
 
 
 def _check_backend(state_file: Path, name: str) -> tuple[bool, str]:

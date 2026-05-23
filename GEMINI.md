@@ -9,8 +9,8 @@ Single command `/cli-tran` with flags:
 | Command | Description |
 |---------|-------------|
 | `/cli-tran <file>` | Init + translate novel |
-| `/cli-tran <file> --resume` | Resume interrupted translation |
-| `/cli-tran <file> --validate` | Validate translation quality |
+| `/cli-tran --resume` | Resume interrupted translation |
+| `/cli-tran --validate` | Validate translation quality |
 
 ## Translation Principles
 
@@ -76,8 +76,6 @@ These markers control the automated loop.
 
 ## Model Selection
 
-The `translate` supervisor script auto-selects the strongest Gemini Pro model:
-- Pro1 → Pro2 → Flash cascade on quota exhaustion
-- RPM (rate limit) → retry same model with backoff
-- RPD (daily quota) → cascade to next model
-- Override: `GEMINI_MODEL=gemini-2.5-pro ./translate novel.txt`
+The driver uses Antigravity CLI (`agy -p`) which uses the model configured
+in `~/.gemini/antigravity-cli/settings.json`. Model selection is handled
+automatically by agy — no manual override needed.
