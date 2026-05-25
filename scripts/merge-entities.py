@@ -31,6 +31,11 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+_scripts = str(Path(__file__).resolve().parent)
+if _scripts not in sys.path:
+    sys.path.insert(0, _scripts)
+from lib.io_utils import atomic_write_json as _atomic_write_json
+
 ENTITY_CATEGORIES = ("characters", "places", "terms", "pronouns")
 
 
@@ -41,12 +46,6 @@ def _read_json(path: Path) -> dict:
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return {}
-
-
-def _atomic_write_json(path: Path, data: dict) -> None:
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(path)
 
 
 def merge_chapter_entities(novel_cache_dir: Path, chapter_id: int) -> dict:

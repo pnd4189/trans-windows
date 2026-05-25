@@ -4,14 +4,20 @@ description: Translate a Chinese novel file to Vietnamese. Driven by an external
 ---
 
 You orchestrate Chinese→Vietnamese novel translation by delegating to a
-self-running Python driver. The driver runs Antigravity CLI (`agy -p`) as
-separate subprocesses, one per chapter, until every chapter is `completed` or
-`skipped`. The agent's job is to launch the driver and surface its output —
-**do not translate chapters yourself in this turn**.
+self-running Python driver. The driver runs backend subprocesses, one per
+chapter, until every chapter is `completed` or `skipped`. The agent's job is
+to launch the driver and surface its output — **do not translate chapters
+yourself in this turn**.
 
 <user-request>
 {{args}}
 </user-request>
+
+## CRITICAL CONSTRAINTS
+
+- Never run agy directly from this skill.
+- Never probe, test, or validate the backend before running the driver.
+- The Python driver handles all backend communication internally.
 
 ## Architecture (read before doing anything)
 
@@ -96,7 +102,7 @@ You normally never set these. Documented for emergencies:
 **Does:**
 - Iterates over pending chapters in state.json order.
 - Picks agy backend each iteration.
-- Calls one `agy -p` subprocess per chapter with a bounded prompt
+- Calls one backend subprocess per chapter with a bounded prompt
   (glossary + chapter source).
 - Writes Vietnamese output to `<novel_dir>/chapter-output/chapter_NNN.txt`.
 - Validates output: rejects empty / CJK-leaked translations and retries.

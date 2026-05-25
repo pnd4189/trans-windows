@@ -175,7 +175,7 @@ A single file (`/tmp/.cli-tran-state-path`) points to the active novel's `state.
 
 **Symptom:** Chapter stuck for 10+ minutes
 **Cause:** agy subprocess hanging (network issue, model timeout)
-**Fix:** `translate-chapter.py` has `SUBPROCESS_TIMEOUT_SECS = 600` (10 min). Driver will retry on timeout.
+**Fix:** `translate-chapter.py` has `SUBPROCESS_TIMEOUT_SECS = 900` (15 min). Driver will retry on timeout.
 
 ## Shared Constants (lib/io_utils.py)
 

@@ -30,6 +30,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -37,8 +38,9 @@ _scripts = str(Path(__file__).resolve().parent)
 if _scripts not in sys.path:
     sys.path.insert(0, _scripts)
 from lib.io_utils import atomic_write_json as _atomic_write_json, QUOTA_MARKERS
+from lib.platform_paths import find_agy as _find_agy
 
-SUBPROCESS_TIMEOUT_SECS = 600
+SUBPROCESS_TIMEOUT_SECS = 900
 
 # Lines that the gemini/agy CLIs or skill-conflict warnings prepend before/after
 # the real model output. We strip these as best-effort.
@@ -156,13 +158,14 @@ Source chapter:
 
 
 def _invoke_backend(backend: str, model: str, prompt: str) -> tuple[int, str, str]:
-    agy_path = shutil.which("agy") or "agy"
+    agy_path = _find_agy()
     cmd = [agy_path, "-p", prompt]
 
     try:
         proc = subprocess.run(
             cmd, capture_output=True, text=True,
             timeout=SUBPROCESS_TIMEOUT_SECS, env=_clean_env(),
+            cwd=tempfile.gettempdir(), shell=(sys.platform == "win32"),
         )
     except subprocess.TimeoutExpired:
         return 124, "", "subprocess timeout"

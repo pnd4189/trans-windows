@@ -41,6 +41,12 @@ def _find_agy() -> str:
     if agy:
         return agy
     if _is_windows():
+        local_app = os.environ.get("LOCALAPPDATA")
+        if local_app:
+            agy_exe = Path(local_app) / "agy" / "bin" / "agy.exe"
+            if agy_exe.exists():
+                return str(agy_exe)
+    if _is_windows():
         appdata = os.environ.get("APPDATA")
         if appdata:
             npm_bin = Path(appdata) / "npm" / "agy.cmd"
@@ -135,18 +141,18 @@ def main() -> int:
 
     # 7. Uninstall stale entry, then import
     subprocess.run([agy_bin, "plugin", "uninstall", PLUGIN_NAME],
-                   capture_output=True)
+                   capture_output=True, shell=(sys.platform == "win32"))
 
     print("\nImporting via agy...")
     result = subprocess.run([agy_bin, "plugin", "import", "gemini"],
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, shell=(sys.platform == "win32"))
     if result.returncode != 0:
         print(f"ERROR: agy plugin import failed:\n{result.stderr}", file=sys.stderr)
         return 1
 
     # 8. Verify
     print("\nVerifying registration:")
-    check = subprocess.run([agy_bin, "plugin", "list"], capture_output=True, text=True)
+    check = subprocess.run([agy_bin, "plugin", "list"], capture_output=True, text=True, shell=(sys.platform == "win32"))
     if PLUGIN_NAME not in check.stdout:
         print(f"ERROR: {PLUGIN_NAME} did not appear in agy plugin list", file=sys.stderr)
         return 1

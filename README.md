@@ -11,8 +11,8 @@ One command translates a full novel (~500 chapters) without manual intervention.
 ## Installation
 
 ```bash
-git clone https://github.com/pnd4189/cli-translator
-cd cli-translator
+git clone https://github.com/pnd4189/trans-windows
+cd trans-windows
 python install.py
 ```
 
@@ -58,12 +58,12 @@ completed chapter.
 
 | Priority | Backend | Model |
 |----------|---------|-------|
-| 1 | `agy -p` | Configured in Antigravity settings |
+| 1 | agy subprocess | Configured in Antigravity settings |
 
-The driver probes agy before each chapter run. A 5-minute negative cache
-prevents repeated dead probes; a 1-hour positive cache skips probes on the
-happy path. When the backend is exhausted the driver halts cleanly and
-tells you to resume later with `/cli-tran --resume`.
+The driver checks agy binary availability (no live subprocess probe).
+A 5-minute negative cache prevents repeated dead checks; a 1-hour positive
+cache short-circuits on the happy path. When the backend is exhausted the
+driver halts cleanly and tells you to resume later with `/cli-tran --resume`.
 
 ## Genre support
 

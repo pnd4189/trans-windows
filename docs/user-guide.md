@@ -2,7 +2,7 @@
 
 ## Overview
 
-cli-tran translates Chinese web novels to Vietnamese using AI backends (currently `agy` which uses Claude via Antigravity CLI). It runs as a Claude Code skill — no manual API key management needed.
+cli-tran translates Chinese web novels to Vietnamese using AI backends (currently `agy` which uses Gemini via Antigravity CLI). It runs as an agy skill — no manual API key management needed.
 
 ## Quick Start
 
@@ -128,15 +128,17 @@ A single pointer file at `/tmp/.cli-tran-state-path` (Linux) or `%TEMP%\cli-tran
 
 ### Model Selection
 
-The model is configured in `~/.gemini/antigravity-cli/settings.json`:
+The model is configured in `~/.gemini/antigravity-cli/settings.json` — use the
+strongest Flash model available (highest version number):
 
 ```json
 {
-  "model": "claude-sonnet-4-6"
+  "model": "Gemini 3.5 Flash (High)"
 }
 ```
 
-Or via environment: `GEMINI_MODEL=<model-name>`
+Google updates model versions periodically. Always pick the latest Flash with the
+highest version number in your agy settings.
 
 ### Genre Detection
 

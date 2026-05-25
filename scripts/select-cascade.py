@@ -5,9 +5,9 @@ select-cascade.py — Pick the next backend for the translation loop.
 Single backend: agy (via `agy -p`), uses the model configured in
 ~/.gemini/antigravity-cli/settings.json.
 
-A 5-minute negative cache (per-novel) tracks recently-failed probes so the
-loop does not re-probe a dead backend on every chapter. A 1-hour positive cache
-short-circuits the probe on the happy path.
+Probe checks binary presence via shutil.which (no live subprocess). A 5-minute
+negative cache tracks recently-failed backends. A 1-hour positive cache
+short-circuits the check on the happy path.
 
 Usage:
   python select-cascade.py --state <state.json> [--mark-fail <backend>] [--json]
@@ -19,7 +19,6 @@ import argparse
 import json
 import os
 import shutil
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -27,20 +26,15 @@ from pathlib import Path
 _scripts = str(Path(__file__).resolve().parent)
 if _scripts not in sys.path:
     sys.path.insert(0, _scripts)
-from lib.io_utils import atomic_write_json as _atomic_write_json, API_KEY_STRIP as _API_KEY_STRIP
+from lib.io_utils import atomic_write_json as _atomic_write_json
+from lib.platform_paths import find_agy as _find_agy
 
-PROBE_TIMEOUT_SECS = 60
+
 CACHE_TTL_ALIVE = 3600
 CACHE_TTL_DEAD = 300
 
 BACKENDS = ("agy",)
 
-
-def _oauth_env() -> dict:
-    env = os.environ.copy()
-    for k in _API_KEY_STRIP:
-        env.pop(k, None)
-    return env
 
 
 def _cache_path(state_file: Path) -> Path:
@@ -68,23 +62,10 @@ def _is_fresh(entry: dict) -> bool:
 
 
 def _probe_agy() -> tuple[bool, str]:
-    if not shutil.which("agy"):
-        return False, "agy CLI not installed"
-    cmd = ["agy", "-p", "OK"]
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True,
-                              timeout=PROBE_TIMEOUT_SECS, env=_oauth_env())
-    except subprocess.TimeoutExpired:
-        return False, "probe timeout"
-    if proc.returncode != 0:
-        return False, f"exit {proc.returncode}: {(proc.stderr or '').strip()[:200]}"
-    blob = (proc.stdout or "") + (proc.stderr or "")
-    for marker in ("RESOURCE_EXHAUSTED", "QUOTA_EXHAUSTED", "PERMISSION_DENIED",
-                   "quota exhausted", "Daily quota", "Per-minute quota",
-                   "rate_limit", "429"):
-        if marker in blob:
-            return False, marker
-    return True, "ok"
+    agy_path = _find_agy()
+    if agy_path != "agy":
+        return True, "ok"
+    return False, "agy CLI not installed"
 
 
 PROBES = {"agy": _probe_agy}

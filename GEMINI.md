@@ -76,6 +76,5 @@ These markers control the automated loop.
 
 ## Model Selection
 
-The driver uses Antigravity CLI (`agy -p`) which uses the model configured
-in `~/.gemini/antigravity-cli/settings.json`. Model selection is handled
-automatically by agy — no manual override needed.
+Model selection is configured in `~/.gemini/antigravity-cli/settings.json`
+and handled automatically — no manual override needed.
