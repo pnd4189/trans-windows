@@ -32,6 +32,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 MAX_TOTAL_CHAPTERS = int(os.environ.get("CLI_TRAN_MAX_CHAPTERS", "600"))
 MAX_RETRIES_PER_CHAPTER = int(os.environ.get("CLI_TRAN_MAX_RETRIES", "5"))
 CHAPTER_COOLDOWN_SECS = float(os.environ.get("CLI_TRAN_COOLDOWN", "2"))
+CHILD_TIMEOUT_SECS = int(os.environ.get("CLI_TRAN_CHILD_TIMEOUT", "1020"))
 
 
 def log(msg: str, driver_log: Path | None = None, _log_fh=None) -> None:
@@ -50,7 +51,7 @@ def log(msg: str, driver_log: Path | None = None, _log_fh=None) -> None:
 def _run_python(script: Path, args: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(script)] + args,
-        capture_output=True, text=True, timeout=600,
+        capture_output=True, text=True, timeout=CHILD_TIMEOUT_SECS,
     )
 
 

@@ -159,10 +159,10 @@ Mở file kiểm tra: phải là tiếng Việt, **không có chữ Trung Quốc
 ### 5.3 Xem file tổng hợp
 
 ```powershell
-type "%LOCALAPPDATA%\cli-tran\novels\<hash>\translated_novel.txt"
+type "C:\path\to\novel_vi.txt"
 ```
 
-File này chứa toàn bộ bản dịch đã gộp.
+File này nằm cạnh file truyện gốc và có hậu tố `_vi.txt`.
 
 ---
 

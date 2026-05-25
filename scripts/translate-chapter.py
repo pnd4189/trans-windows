@@ -41,6 +41,7 @@ from lib.io_utils import atomic_write_json as _atomic_write_json, QUOTA_MARKERS
 from lib.platform_paths import find_agy as _find_agy
 
 SUBPROCESS_TIMEOUT_SECS = 900
+WINDOWS_PROMPT_ARG_LIMIT = 24000
 
 # Lines that the gemini/agy CLIs or skill-conflict warnings prepend before/after
 # the real model output. We strip these as best-effort.
@@ -157,22 +158,56 @@ Source chapter:
 """
 
 
+def _kill_process_tree(proc: subprocess.Popen) -> None:
+    if sys.platform == "win32":
+        subprocess.run(
+            ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+            capture_output=True,
+        )
+    else:
+        proc.kill()
+
+
+def _run_backend_command(cmd: list[str]) -> tuple[int, str, str]:
+    proc = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        env=_clean_env(), cwd=tempfile.gettempdir(),
+        shell=(sys.platform == "win32"),
+    )
+    try:
+        stdout, stderr = proc.communicate(timeout=SUBPROCESS_TIMEOUT_SECS)
+    except subprocess.TimeoutExpired:
+        _kill_process_tree(proc)
+        stdout, stderr = proc.communicate()
+        return 124, stdout or "", (stderr or "") + "\nsubprocess timeout"
+    return proc.returncode, stdout or "", stderr or ""
+
+
+def _prompt_command(agy_path: str, prompt: str) -> tuple[list[str], Path | None]:
+    if sys.platform != "win32" or len(prompt) <= WINDOWS_PROMPT_ARG_LIMIT:
+        return [agy_path, "-p", prompt], None
+
+    prompt_file = Path(tempfile.gettempdir()) / f"cli-tran-prompt-{os.getpid()}.txt"
+    prompt_file.write_text(prompt, encoding="utf-8")
+    short_prompt = (
+        "Read the UTF-8 prompt file below and follow its instructions exactly. "
+        "Output only the final answer requested by that file.\n\n"
+        f"Prompt file: {prompt_file}"
+    )
+    return [agy_path, "--add-dir", str(prompt_file.parent), "-p", short_prompt], prompt_file
+
+
 def _invoke_backend(backend: str, model: str, prompt: str) -> tuple[int, str, str]:
     agy_path = _find_agy()
-    cmd = [agy_path, "-p", prompt]
+    cmd, prompt_file = _prompt_command(agy_path, prompt)
 
     try:
-        proc = subprocess.run(
-            cmd, capture_output=True, text=True,
-            timeout=SUBPROCESS_TIMEOUT_SECS, env=_clean_env(),
-            cwd=tempfile.gettempdir(), shell=(sys.platform == "win32"),
-        )
-    except subprocess.TimeoutExpired:
-        return 124, "", "subprocess timeout"
+        return _run_backend_command(cmd)
     except FileNotFoundError as exc:
         return 127, "", f"backend not installed: {exc}"
-
-    return proc.returncode, proc.stdout, proc.stderr
+    finally:
+        if prompt_file is not None:
+            prompt_file.unlink(missing_ok=True)
 
 
 def _strip_preamble(text: str) -> str:

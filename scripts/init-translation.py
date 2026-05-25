@@ -31,6 +31,7 @@ from lib.novel_cache import (
     cleanup_stale_novels,
 )
 from lib.file_lock import acquire as _acquire_lock, release as _release_lock
+from lib.platform_paths import state_pointer_path as _state_pointer_path
 
 MAX_RETRIES_PER_CHAPTER = 5
 
@@ -59,6 +60,13 @@ def init_translation(source_file: str, output_dir: str | None = None,
         raise FileNotFoundError(f"Source file not found: {source_file}")
     if not source_path.is_file():
         raise ValueError(f"Source path is not a file: {source_file}")
+
+    active_state = _active_pointer_state()
+    if active_state and active_state.get('source_file') != str(source_path):
+        raise RuntimeError(
+            "Another cli-tran translation is active. Run /cli-tran --status or "
+            "/cli-tran --resume, or stop it before starting a different source."
+        )
 
     # TTL cleanup: drop completed novels older than 24h before initializing a new one.
     deleted = cleanup_stale_novels()
@@ -271,8 +279,21 @@ def _write_state_pointer(state_file: Path) -> None:
     unsuffixed pointer is sufficient because only one /cli-tran session runs
     per agy instance.
     """
-    from lib.platform_paths import state_pointer_path as _spp
-    _spp().write_text(str(state_file), encoding='utf-8')
+    _state_pointer_path().write_text(str(state_file), encoding='utf-8')
+
+
+def _active_pointer_state() -> dict | None:
+    pointer = _state_pointer_path()
+    if not pointer.exists():
+        return None
+    try:
+        pointed_state = Path(pointer.read_text(encoding='utf-8').strip())
+        if not pointed_state.exists():
+            return None
+        state = json.loads(pointed_state.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return state if state.get('active') else None
 
 
 def main():

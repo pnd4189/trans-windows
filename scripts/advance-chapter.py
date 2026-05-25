@@ -93,7 +93,9 @@ def _finalize_if_done(state: dict, state_file: Path, log_path: Path) -> bool:
 
     # Drop the global pointer so future hook fires no-op.
     try:
-        _pointer_path().unlink(missing_ok=True)
+        pointer = _pointer_path()
+        if pointer.exists() and pointer.read_text(encoding="utf-8").strip() == str(state_file):
+            pointer.unlink()
     except OSError:
         pass
 
@@ -157,12 +159,16 @@ def advance(state_file: Path, chapter_id: int, output_file: Path,
     now = _now_iso()
 
     if file_ok:
+        previous_status = ch.get("status")
         ch["status"] = "completed"
         ch["translated_at"] = now
         ch["output_file"] = str(output_file)
         ch["retry_count"] = 0
         ch["cjk_bp"] = cjk_bp
-        state["chapters_completed"] = state.get("chapters_completed", 0) + 1
+        if previous_status != "completed":
+            state["chapters_completed"] = state.get("chapters_completed", 0) + 1
+        if previous_status == "skipped":
+            state["chapters_failed"] = max(0, state.get("chapters_failed", 0) - 1)
         state["last_updated"] = now
 
         # Advance pointer to next pending chapter
