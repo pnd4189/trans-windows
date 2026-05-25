@@ -1,69 +1,69 @@
-# Huong dan Test cli-tran tren Windows
+# Hướng dẫn Test cli-tran trên Windows
 
-Huong dan chi tiet tung buoc de tu test va tim loi tren Windows.
-Danh cho nguoi moi bat dau — khong can biet lap trinh.
+Hướng dẫn chi tiết từng bước để tự test và tìm lỗi trên Windows.
+Dành cho người mới bắt đầu — không cần biết lập trình.
 
 ---
 
-## Buoc 1: Kiem tra cac yeu cau truoc khi cai dat
+## Bước 1: Kiểm tra các yêu cầu trước khi cài đặt
 
-Mo **PowerShell** (nhan `Win`, go `powershell`, nhan `Enter`).
+Mở **PowerShell** (nhấn phím `Win`, gõ `powershell`, nhấn `Enter`).
 
-### 1.1 Kiem tra Python
+### 1.1 Kiểm tra Python
 
 ```powershell
 python --version
 ```
 
-Phai hien thi Python 3.10 tro len. Vi du: `Python 3.12.0`
+Phải hiện thị Python 3.10 trở lên. Ví dụ: `Python 3.12.0`
 
-- Neu bao loi `"python" is not recognized`: ban chua cai Python hoac chua them vao PATH.
-  - Thu: `py --version` (Windows Python launcher)
-  - Neu van loi: tai va cai Python tai https://www.python.org/downloads/
-  - **Luu y:** Khi cai Python, tick chon "Add Python to PATH"
+- Nếu báo lỗi `"python" is not recognized`: bạn chưa cài Python hoặc chưa thêm vào PATH.
+  - Thử gõ: `py --version` (Windows Python launcher)
+  - Nếu vẫn lỗi: tải và cài Python tại https://www.python.org/downloads/
+  - **Lưu ý quan trọng:** Khi cài Python, nhớ tick chọn ô **"Add Python to PATH"**
 
-### 1.2 Kiem tra Antigravity CLI (agy)
+### 1.2 Kiểm tra Antigravity CLI (agy)
 
 ```powershell
 agy --version
 ```
 
-Phai hien thi version, vi du: `1.0.2`
+Phải hiện thị số version, ví dụ: `1.0.2`
 
-- Neu bao loi: ban chua cai agy. Thu cac lenh sau:
+- Nếu báo lỗi: bạn chưa cài agy. Thử các lệnh sau để tìm:
 
 ```powershell
-# Kiem tra xem agy co trong cac thu muc pho biep khong
+# Kiểm tra xem agy có ở các thư mục phổ biến không
 dir "%LOCALAPPDATA%\agy\bin\agy.exe"
 dir "%APPDATA%\npm\agy.cmd"
 ```
 
-- Neu khong thay file nao: can cai dat Antigravity CLI truoc.
+- Nếu không thấy file nào: cần cài đặt Antigravity CLI trước.
 
-### 1.3 Kiem tra dang nhap Google
+### 1.3 Kiểm tra đăng nhập Google
 
 ```powershell
-agy -p "xin chao"
+agy -p "xin chào"
 ```
 
-Phai tra loi duoc, vi du: `"Xin chao! Toi co the giup gi cho ban hom nay?"`
+Phải trả lời được, ví dụ: `"Xin chào! Tôi có thể giúp gì cho bạn hôm nay?"`
 
-- Neu bao loi hoac khong co ket qua: ban can dang nhap Google account trong agy.
+- Nếu báo lỗi hoặc không có kết quả: bạn cần đăng nhập Google account trong agy.
 
 ---
 
-## Buoc 2: Cai dat skill cli-tran
+## Bước 2: Cài đặt skill cli-tran
 
 ```powershell
-# Tai ve (hoac clone tu git)
+# Tải về từ GitHub
 git clone https://github.com/pnd4189/trans-windows
 cd trans-windows
 
-# Chay cai dat
+# Chạy cài đặt
 python install.py
 ```
 
-**Ket qua mong doi:**
+**Kết quả mong đợi:**
 ```
 Repo:     ...
 Staging:  ...
@@ -75,14 +75,14 @@ Importing via agy...
 Installed. Restart Antigravity CLI to load the extension.
 ```
 
-- Neu bao loi `agy not found in PATH`: quay lai Buoc 1.2
-- Neu bao loi `agy plugin import failed`: thu chay lai, hoac kiem tra agy da duoc cai dung chua
+- Nếu báo lỗi `agy not found in PATH`: quay lại Bước 1.2
+- Nếu báo lỗi `agy plugin import failed`: thử chạy lại, hoặc kiểm tra agy đã được cài đúng chưa
 
 ---
 
-## Buoc 3: Chuan bi file test
+## Bước 3: Chuẩn bị file test
 
-Tao 1 file van ban nho de test, vi du `test-novel.txt`:
+Tạo 1 file văn bản nhỏ để test, ví dụ `test-novel.txt`:
 
 ```
 第一章 开始
@@ -98,206 +98,211 @@ Tao 1 file van ban nho de test, vi du `test-novel.txt`:
 狐狸笑了笑说："我是这片森林的守护者。"
 ```
 
-Luu file nay o bat ky dau, vi du: `D:\test-novel.txt`
+Lưu file này ở bất kỳ đâu, ví dụ: `D:\test-novel.txt`
+
+> **Lưu ý:** File phải được lưu dưới dạng UTF-8. Nếu dùng Notepad, chọn
+> File → Save As → Encoding chọn **UTF-8**.
 
 ---
 
-## Buoc 4: Chay test dich
+## Bước 4: Chạy test dịch
 
-### 4.1 Mo agy (cua so interactive)
+### 4.1 Mở agy (cửa sổ tương tác)
 
 ```powershell
 agy
 ```
 
-Doi agy khoi dong xong (hien thi prompt).
+Đợi agy khởi động xong (hiện thị dấu nhắc prompt).
 
-### 4.2 Chay lenh dich
+### 4.2 Chạy lệnh dịch
 
-Trong cua so agy, go:
+Trong cửa sổ agy, gõ:
 
 ```
 /cli-tran D:\test-novel.txt
 ```
 
-**Ket qua mong doi:**
+**Kết quả mong đợi:**
 ```
-Translation complete: X/Y chapters done, 0 skipped, 0 pending.
+Translation complete: 1/1 chapters done, 0 skipped, 0 pending.
 ```
 
-### 4.3 Neu bi loi hoac treo
+### 4.3 Nếu bị lỗi hoặc treo
 
-Nhan `Ctrl + C` de dung. Sau do doc phan "Cach tim va bao loi" ben duoi.
+Nhấn `Ctrl + C` để dừng. Sau đó đọc phần "Cách tìm và báo lỗi" bên dưới.
 
 ---
 
-## Buoc 5: Kiem tra ket qua dich
+## Bước 5: Kiểm tra kết quả dịch
 
-### 5.1 Tim thu muc cache
+### 5.1 Tìm thư mục cache
 
 ```powershell
-# Xem noi luu cache
+# Xem nơi lưu cache
 dir "%LOCALAPPDATA%\cli-tran\novels"
 ```
 
-Se thay 1 thu muc co ten la ma hash (vi du `4424de7c21297453`).
+Sẽ thấy 1 thư mục có tên là mã hash (ví dụ `4424de7c21297453`).
 
-### 5.2 Xem file da dich
+### 5.2 Xem file đã dịch
 
 ```powershell
-# Thay <hash> bang ma hash cua ban
+# Thay <hash> bằng mã hash của bạn
 dir "%LOCALAPPDATA%\cli-tran\novels\<hash>\chapter-output"
 ```
 
-Phai co cac file `chapter_001.txt`, `chapter_002.txt`...
+Phải có các file `chapter_001.txt`, `chapter_002.txt`...
 
-Mo file kiem tra: phai la tieng Viet, khong co chu Trung Quoc.
+Mở file kiểm tra: phải là tiếng Việt, **không có chữ Trung Quốc**.
 
-### 5.3 Xem file tong hop
+### 5.3 Xem file tổng hợp
 
 ```powershell
 type "%LOCALAPPDATA%\cli-tran\novels\<hash>\translated_novel.txt"
 ```
 
+File này chứa toàn bộ bản dịch đã gộp.
+
 ---
 
-## Cach Tim Va Bao Loi
+## Cách Tìm Và Báo Lỗi
 
-Khi gap loi, hay thu thap thong tin theo cac buoc sau roi gui bao cao.
+Khi gặp lỗi, hãy thu thập thông tin theo các bước sau rồi gửi báo cáo.
 
-### Loai loi 1: Skill treo khong chay
+### Loại lỗi 1: Skill treo không chạy
 
-**Hien tuong:** Go `/cli-tran` nhung khong co gi xay ra hoac treo rat lau.
+**Hiện tượng:** Gõ `/cli-tran` nhưng không có gì xảy ra hoặc treo rất lâu.
 
-**Cach kiem tra:**
+**Cách kiểm tra:**
 
 ```powershell
-# 1. Xem driver log
+# 1. Xem driver log — thay <hash> bằng mã hash của bạn
 type "%LOCALAPPDATA%\cli-tran\novels\<hash>\driver.log"
 ```
 
-**Thong tin can gui bao cao:**
-- Noi dung file `driver.log` (toan bo hoac 50 dong cuoi)
-- Ban da chay tu cua so agy hay PowerShell?
+**Thông tin cần gửi báo cáo:**
+- Nội dung file `driver.log` (toàn bộ hoặc 50 dòng cuối)
+- Bạn đã chạy từ cửa sổ agy hay PowerShell?
 
-### Loai loi 2: Dich ra nhung file trong
+### Loại lỗi 2: Dịch xong nhưng file trống trơn
 
-**Hien tuong:** Bao thanh cong nhung file chapter trong troi.
+**Hiện tượng:** Báo thành công nhưng file chương trống không có nội dung.
 
-**Cach kiem tra:**
+**Cách kiểm tra:**
 
 ```powershell
-# Xem debug log (neu co)
+# Xem debug log (nếu có)
 dir "%LOCALAPPDATA%\cli-tran\novels\<hash>\debug"
 type "%LOCALAPPDATA%\cli-tran\novels\<hash>\debug\chapter_001_raw.log"
 ```
 
-**Thong tin can gui bao cao:**
-- Noi dung file debug (STDOUT va STDERR)
-- Kich thuoc file chapter: `dir "%LOCALAPPDATA%\cli-tran\novels\<hash>\chapter-output"`
+**Thông tin cần gửi báo cáo:**
+- Nội dung file debug (phần STDOUT và STDERR)
+- Kích thước file chương: `dir "%LOCALAPPDATA%\cli-tran\novels\<hash>\chapter-output"`
 
-### Loai loi 3: Bao "All backends exhausted"
+### Loại lỗi 3: Báo "All backends exhausted"
 
-**Hien tuong:** Log hien thi backend bi dead hoac exhausted.
+**Hiện tượng:** Log hiển thị backend bị dead hoặc exhausted (hết quota).
 
-**Cach kiem tra:**
+**Cách kiểm tra:**
 
 ```powershell
-# Xem backend cache
+# Xem trạng thái backend cache
 type "%LOCALAPPDATA%\cli-tran\novels\<hash>\backend_cache.json"
 ```
 
-- Neu `"alive": false`: xoa cache va thu lai:
+- Nếu thấy `"alive": false`: xóa cache và thử lại:
 
 ```powershell
 del "%LOCALAPPDATA%\cli-tran\novels\<hash>\backend_cache.json"
 ```
 
-- Neu bao quota: doi khoang 5-10 phut roi chay lai `/cli-tran --resume`
+- Nếu báo quota: đợi khoảng 5-10 phút rồi chạy lại `/cli-tran --resume`
 
-### Loai loi 4: Bao "agy CLI not installed"
+### Loại lỗi 4: Báo "agy CLI not installed"
 
-**Hien tuong:** Log bao khong tim thay agy.
+**Hiện tượng:** Log báo không tìm thấy agy.
 
-**Cach kiem tra:**
+**Cách kiểm tra:**
 
 ```powershell
-# Kiem tra agy co chay duoc khong
+# Kiểm tra agy có chạy được không
 agy -p "hello"
 
-# Kiem tra vi tri agy
+# Kiểm tra vị trí agy
 where agy
 dir "%LOCALAPPDATA%\agy\bin\agy.exe"
 dir "%APPDATA%\npm\agy.cmd"
 ```
 
-- Neu `agy -p "hello"` chay duoc nhung skill bao loi: do la bug, hay bao cao.
+- Nếu `agy -p "hello"` chạy được nhưng skill vẫn báo lỗi: đó là bug, hãy báo cáo.
 
-### Loai loi 5: Loi Python
+### Loại lỗi 5: Lỗi Python
 
-**Hien tuong:** Bao loi `ModuleNotFoundError`, `ImportError`, `SyntaxError`...
+**Hiện tượng:** Báo lỗi `ModuleNotFoundError`, `ImportError`, `SyntaxError`...
 
-**Cach kiem tra:**
+**Cách kiểm tra:**
 
 ```powershell
-# Kiem tra syntax cac file
+# Kiểm tra syntax các file
 python -m py_compile "%LOCALAPPDATA%\cli-tran-src\scripts\translate-chapter.py"
 python -m py_compile "%LOCALAPPDATA%\cli-tran-src\scripts\select-cascade.py"
 python -m py_compile "%LOCALAPPDATA%\cli-tran-src\scripts\auto-translate.py"
 python -m py_compile "%LOCALAPPDATA%\cli-tran-src\install.py"
 ```
 
-- Neu bao loi file nao: do la bug, hay gui noi dung loi.
+- Nếu báo lỗi file nào: đó là bug, hãy gửi nội dung lỗi.
 
 ---
 
-## Mau Bao Cao Loi
+## Mẫu Báo Cáo Lỗi
 
-Khi bao loi, hay copy va dien vao mau sau:
+Khi báo lỗi, hãy copy mẫu sau, điền thông tin và gửi:
 
 ```
-## Thong tin he thong
-- Windows version: (vi du: Windows 11 Pro 23H2)
-- Python version: (ket qua cua `python --version`)
-- agy version: (ket qua cua `agy --version`)
-- cli-tran version: (commit hash hoac ngay tai ve)
+## Thông tin hệ thống
+- Phiên bản Windows: (ví dụ: Windows 11 Pro 23H2)
+- Phiên bản Python: (kết quả của `python --version`)
+- Phiên bản agy: (kết quả của `agy --version`)
+- Phiên bản cli-tran: (commit hash hoặc ngày tải về)
 
-## Mo ta loi
-- Lenh da chay: (vi du: `/cli-tran D:\test.txt`)
-- Ket qua mong doi: (vi du: dich thanh cong)
-- Ket qua thuc te: (vi du: treo khong co ket qua)
+## Mô tả lỗi
+- Lệnh đã chạy: (ví dụ: `/cli-tran D:\test.txt`)
+- Kết quả mong đợi: (ví dụ: dịch thành công)
+- Kết quả thực tế: (ví dụ: treo không có kết quả)
 
-## Log loi
-(Dan noi dung tu driver.log hoac debug log vao day)
+## Log lỗi
+(Dán nội dung từ driver.log hoặc debug log vào đây)
 
-## Cac buoc da thu
-- [ ] Da xoa backend_cache.json va chay lai
-- [ ] Da kiem tra agy -p "hello" chay duoc
-- [ ] Da kiem tra file source la UTF-8
+## Các bước đã thử
+- [ ] Đã xóa backend_cache.json và chạy lại
+- [ ] Đã kiểm tra agy -p "hello" chạy được
+- [ ] Đã kiểm tra file nguồn là UTF-8
 ```
 
 ---
 
-## Cac lenh huu ich
+## Các lệnh hữu ích
 
 ```powershell
-# Xem tien do
-python "%LOCALAPPDATA%\cli-tran-src\scripts\get-progress.py" "<state-file>"
+# Xem tiến độ dịch
+python "%LOCALAPPDATA%\cli-tran-src\scripts\get-progress.py" "<đường-dẫn-state-file>"
 
-# Resume sau khi bi gian doan
-# (Chay trong cua so agy)
+# Tiếp tục sau khi bị gián đoạn
+# (Chạy trong cửa sổ agy)
 /cli-tran --resume
 
-# Reset cac chapter loi de dich lai
-# (Chay trong cua so agy)
+# Chọn lại các chương lỗi để dịch lại
+# (Chạy trong cửa sổ agy)
 /cli-tran --redo failed
 
-# Xem trang thai backend
+# Xem trạng thái backend
 type "%LOCALAPPDATA%\cli-tran\novels\<hash>\backend_cache.json"
 
-# Xem log chi tiet
+# Xem log chi tiết
 type "%LOCALAPPDATA%\cli-tran\novels\<hash>\driver.log"
 
-# Kiem tra file goc co phai UTF-8 khong
-python -c "open(r'D:\test.txt', encoding='utf-8').read(); print('OK')"
+# Kiểm tra file gốc có phải UTF-8 không
+python -c "open(r'D:\test.txt', encoding='utf-8').read(); print('UTF-8 OK')"
 ```

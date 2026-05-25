@@ -1,14 +1,14 @@
 # cli-tran
 
-Antigravity CLI skill for automated Chinese-to-Vietnamese novel translation.
-One command translates a full novel (~500 chapters) without manual intervention.
+Công cụ dịch tiểu thuyết Trung → Việt tự động qua Antigravity CLI.
+Chỉ cần 1 lệnh để dịch cả cuốn tiểu thuyết (~500 chương) không cần can thiệp tay.
 
-## Requirements
+## Yêu cầu
 
-- [Antigravity CLI](https://github.com/google-antigravity/antigravity-cli) (`agy`) — in PATH
-- Python 3.10+ — `python` command must work in your terminal
+- [Antigravity CLI](https://github.com/google-antigravity/antigravity-cli) (`agy`) — đã cài và có trong PATH
+- Python 3.10 trở lên — gõ `python --version` trong terminal phải chạy được
 
-## Installation
+## Cài đặt
 
 ```bash
 git clone https://github.com/pnd4189/trans-windows
@@ -16,126 +16,126 @@ cd trans-windows
 python install.py
 ```
 
-`install.py` copies files to a staging directory, deploys the extension to
-`~/.gemini/extensions/cli-tran/`, and registers the plugin via
-`agy plugin import gemini`. Restart Antigravity CLI after install.
+`install.py` sẽ copy file vào thư mục staging, triển khai extension tại
+`~/.gemini/extensions/cli-tran/`, và đăng ký plugin qua
+`agy plugin import gemini`. Khởi động lại Antigravity CLI sau khi cài.
 
-## Usage
+## Cách dùng
 
 ```
-/cli-tran /path/to/novel.txt           # init + translate full file
-/cli-tran --resume                     # continue an interrupted run
-/cli-tran --status                     # show progress
-/cli-tran --redo 3,7,11-15             # reset specific chapters to pending
+/cli-tran /path/to/novel.txt           # Khởi tạo + dịch toàn bộ
+/cli-tran --resume                     # Tiếp tục bản dịch bị gián đoạn
+/cli-tran --status                     # Xem tiến độ
+/cli-tran --redo 3,7,11-15             # Chọn lại các chương cần dịch lại
 ```
 
-The skill runs a Python driver that translates each chapter as an
-independent subprocess. It continues until every chapter is `completed` or
-`skipped`, then writes a single `*_vi.txt` file next to the source.
+Skill chạy một Python driver dịch từng chương qua subprocess độc lập.
+Nó tiếp tục cho đến khi mọi chương `completed` hoặc `skipped`,
+sau đó gộp thành 1 file `*_vi.txt` cạnh file gốc.
 
-## Architecture
+## Kiến trúc
 
 ```
 /cli-tran <file>
   │
-  ├─ scripts/init-translation.py     # detect chapters, create state.json
+  ├─ scripts/init-translation.py     # Phát hiện chương, tạo state.json
   │
-  └─ scripts/auto-translate.py       # Python driver loop — runs to completion
-       ├─ scripts/select-cascade.py       # pick agy backend
-       ├─ scripts/translate-chapter.py    # one subprocess per chapter
-       └─ scripts/advance-chapter.py      # validate output + update state
-            └─ scripts/merge-chapters.py  # final merge once all chapters done
+  └─ scripts/auto-translate.py       # Vòng lặp driver — chạy đến khi xong
+       ├─ scripts/select-cascade.py       # Chọn backend agy
+       ├─ scripts/translate-chapter.py    # 1 subprocess mỗi chương
+       └─ scripts/advance-chapter.py      # Kiểm tra output + cập nhật state
+            └─ scripts/merge-chapters.py  # Gộp file khi hoàn thành
 ```
 
-Per-novel state lives in a platform-dependent cache directory:
+State của mỗi cuốn tiểu thuyết nằm trong thư mục cache theo hệ điều hành:
 - **Linux/macOS**: `~/.cache/cli-tran/novels/<hash>/state.json`
 - **Windows**: `%LOCALAPPDATA%\cli-tran\novels\<hash>\state.json`
 
-Safe to Ctrl+C at any point — `/cli-tran --resume` picks up from the last
-completed chapter.
+An toàn khi Ctrl+C bất kỳ lúc nào — `/cli-tran --resume` sẽ tiếp tục từ chương
+dừng cuối cùng.
 
 ## Backend
 
-| Priority | Backend | Model |
+| Ưu tiên | Backend | Model |
 |----------|---------|-------|
-| 1 | agy subprocess | Configured in Antigravity settings |
+| 1 | agy subprocess | Cấu hình trong Antigravity settings |
 
-The driver checks agy binary availability (no live subprocess probe).
-A 5-minute negative cache prevents repeated dead checks; a 1-hour positive
-cache short-circuits on the happy path. When the backend is exhausted the
-driver halts cleanly and tells you to resume later with `/cli-tran --resume`.
+Driver kiểm tra binary agy có sẵn không (không gọi subprocess probe).
+Cache âm 5 phút ngăn kiểm tra lại backend đã chết; cache dương 1 giờ
+bỏ qua kiểm tra khi backend vẫn tốt. Khi backend hết quota, driver dừng
+sạch và báo bạn chạy lại sau bằng `/cli-tran --resume`.
 
-## Genre support
+## Thể loại hỗ trợ
 
-| Genre code | Description |
-|------------|-------------|
-| `tienxia`  | Cultivation / Tiên Hiệp |
-| `wuxia`    | Martial arts / Kiếm Hiệp |
-| `urban`    | Urban fantasy / Thành Thị |
-| `historical` | Historical / Lịch Sử |
-| `gamelit`  | Game-system novels |
-| `horror`   | Horror / Kinh Dị |
-| `fantasy`  | Generic fantasy (default) |
+| Mã thể loại | Mô tả |
+|------------|--------|
+| `tienxia`  | Tiên Hiệp |
+| `wuxia`    | Kiếm Hiệp |
+| `urban`    | Thành Thị |
+| `historical` | Lịch Sử |
+| `gamelit`  | Hệ thống / Game |
+| `horror`   | Kinh Dị |
+| `fantasy`  | Fantasy (mặc định) |
 
-Genre is auto-detected from the first 8KB of the source file.
+Thể loại được tự động phát hiện từ 8KB đầu tiên của file gốc.
 
-## Project structure
+## Cấu trúc project
 
 ```
-├── install.py                  # Cross-platform install + agy plugin registration
-├── gemini-extension.json       # Extension manifest (read by Antigravity)
+├── install.py                  # Cài đặt đa nền tảng + đăng ký plugin agy
+├── gemini-extension.json       # Extension manifest (Antigravity đọc file này)
 ├── plugin.json                 # Plugin metadata
-├── GEMINI.md                   # Context file loaded by the skill
+├── GEMINI.md                   # Context file được skill load
 ├── hooks/
-│   └── hooks.json              # Empty — driver architecture needs no hooks
+│   └── hooks.json              # Rỗng — kiến trúc driver không cần hooks
 ├── skills/
 │   └── cli-tran/
-│       └── SKILL.md            # Slash-command definition (thin delegator)
+│       └── SKILL.md            # Định nghĩa slash-command
 ├── scripts/
-│   ├── auto-translate.py       # Python driver loop
-│   ├── translate-chapter.py    # Per-chapter subprocess translator
-│   ├── select-cascade.py       # Backend probe + cache logic
-│   ├── advance-chapter.py      # Validate output + mutate state.json
-│   ├── init-translation.py     # Initialize per-novel cache + state
-│   ├── detect-chapters.py      # Chapter boundary detection
-│   ├── merge-chapters.py       # Merge chapter files into final output
-│   ├── merge-entities.py       # Accumulate glossary entities
-│   ├── redo-chapters.py        # Reset chapters to pending
-│   ├── get-progress.py         # Progress display
-│   ├── recover-state.py        # State recovery utility
-│   ├── validate-translation.py # Quality validation
-│   ├── epub2txt.py             # EPUB to text conversion
+│   ├── auto-translate.py       # Vòng lặp driver chính
+│   ├── translate-chapter.py    # Dịch 1 chương qua agy subprocess
+│   ├── select-cascade.py       # Chọn backend + cache logic
+│   ├── advance-chapter.py      # Kiểm tra output + cập nhật state.json
+│   ├── init-translation.py     # Khởi tạo cache + state cho tiểu thuyết
+│   ├── detect-chapters.py      # Phát hiện ranh giới chương
+│   ├── merge-chapters.py       # Gộp file chương thành file hoàn chỉnh
+│   ├── merge-entities.py       # Tích lũy glossary entities
+│   ├── redo-chapters.py        # Reset chương về trạng thái chờ dịch
+│   ├── get-progress.py         # Hiển thị tiến độ
+│   ├── recover-state.py        # Khôi phục state bị hỏng
+│   ├── validate-translation.py # Kiểm tra chất lượng bản dịch
+│   ├── epub2txt.py             # Chuyển EPUB sang text
 │   └── lib/
-│       ├── platform-paths.py   # Cross-platform path helpers
-│       ├── file-lock.py        # Cross-platform file locking
-│       └── novel_cache.py      # Cache directory helpers
+│       ├── platform-paths.py   # Xử lý đường dẫn đa nền tảng
+│       ├── file-lock.py        # Khóa file đa nền tảng
+│       └── novel_cache.py      # Quản lý thư mục cache
 ├── glossary/
-│   ├── default.json            # Universal terms
-│   └── genres/                 # Genre-specific overrides
-└── references/                 # Translation principles + pronoun guide
+│   ├── default.json            # Thuật ngữ chung
+│   └── genres/                 # Override theo thể loại
+└── references/                 # Nguyên tắc dịch + hướng dẫn đại từ
 ```
 
-## Quality controls
+## Kiểm soát chất lượng
 
-- **CJK leak guard**: output with >5% Chinese characters is rejected and
-  retried automatically (5 retries per chapter before skip).
-- **First-seen-wins glossary**: once `李明 → Lý Minh` is recorded in
-  `novel-glossary.json` it is applied consistently to all subsequent chapters.
-- **Atomic writes**: chapter files and state.json are written via temp + replace
-  to prevent corruption on interrupt.
-- **Cross-platform file lock**: `advance-chapter.py` takes an exclusive lock
-  before mutating state so parallel invocations cannot corrupt it.
+- **Phát hiện rò rỉ CJK**: bản dịch có >5% ký tự Trung sẽ bị từ chối và
+  tự động thử lại (tối đa 5 lần mỗi chương trước khi bỏ qua).
+- **Glossary first-seen-wins**: một khi `李明 → Lý Minh` đã được ghi trong
+  `novel-glossary.json`, nó được áp dụng nhất quán cho tất cả chương sau.
+- **Ghi file atomic**: file chương và state.json được ghi qua temp + replace
+  để tránh hỏng khi bị ngắt giữa chừng.
+- **Khóa file đa nền tảng**: `advance-chapter.py` khóa độc quyền trước khi
+  sửa state, ngăn nhiều tiến trình cùng ghi gây hỏng dữ liệu.
 
-## Windows notes
+## Lưu ý cho Windows
 
-- **Python in PATH**: ensure `python --version` works in your terminal. If only
-  the `py` launcher is available, add Python to your PATH or use `py` instead.
-- **Long paths**: if your Windows username is very long and cache paths exceed
-  260 characters, either enable the `LongPathsEnabled` registry key or set
-  `CLI_TRAN_CACHE_ROOT` to a shorter path.
-- **State migration**: cache data from Linux cannot be used on Windows — start
-  a fresh translation on the new machine.
+- **Python trong PATH**: đảm bảo `python --version` chạy được trong terminal.
+  Nếu chỉ có `py` launcher, thêm Python vào PATH hoặc dùng `py` thay thế.
+- **Đường dẫn dài**: nếu username Windows quá dài và đường dẫn cache vượt
+  260 ký tự, bật `LongPathsEnabled` trong registry hoặc đặt biến
+  `CLI_TRAN_CACHE_ROOT` thành đường dẫn ngắn hơn.
+- **Di chuyển state**: dữ liệu cache từ Linux không dùng được trên Windows —
+  cần khởi tạo dịch mới trên máy khác.
 
-## License
+## Giấy phép
 
 MIT
